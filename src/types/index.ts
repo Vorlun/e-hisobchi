@@ -101,6 +101,8 @@ export interface Transaction {
   transferToAccountId?: string;
   /** From API: transfer destination account name */
   transferToAccountName?: string;
+  /** From API: transfer purpose display name (for type TRANSFER) */
+  transferPurposeName?: string;
 }
 
 export interface Budget {

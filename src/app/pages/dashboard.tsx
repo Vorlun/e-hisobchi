@@ -3,7 +3,6 @@ import { Card } from '../components/card';
 import { Button } from '../components/button';
 import { Badge } from '../components/badge';
 import { AddTransactionModal } from '../components/add-transaction-modal';
-import { Select } from '../components/select';
 import {
   TrendingUp,
   TrendingDown,
@@ -29,6 +28,10 @@ import {
 import { useFinance } from '../../store/FinanceStore';
 import { formatUzs, formatUzsSigned } from '../../utils/currency';
 import type { TimeFilter } from '../../store/FinanceStore';
+import { generateSmartAlerts } from '../../services/smartAlerts';
+import { SmartAlertsPanel } from '../components/SmartAlertsPanel';
+import { generatePredictions } from '../../services/predictiveInsights';
+import { PredictiveInsightsWidget } from '../components/PredictiveInsightsWidget';
 
 const MONTH_LABELS: Record<string, string> = {
   '01': 'Jan', '02': 'Feb', '03': 'Mar', '04': 'Apr', '05': 'May', '06': 'Jun',
@@ -48,6 +51,7 @@ export default function Dashboard() {
     totalBalance,
     transactions,
     debts,
+    budgetStatus,
     getExpenseByCategory,
     getIncomeVsExpense,
     loadingAccounts,
@@ -59,10 +63,26 @@ export default function Dashboard() {
     const raw = getIncomeVsExpense(chartFilter);
     return raw.map(({ period, income, expense }) => ({
       month: formatPeriod(period),
+      periodKey: period,
       income,
       expense,
     }));
   }, [chartFilter, getIncomeVsExpense]);
+
+  const chartPeriodTotals = useMemo(() => {
+    const totalIncome = incomeVsExpenseData.reduce((s, d) => s + d.income, 0);
+    const totalExpense = incomeVsExpenseData.reduce((s, d) => s + d.expense, 0);
+    return {
+      totalIncome,
+      totalExpense,
+      netBalance: totalIncome - totalExpense,
+    };
+  }, [incomeVsExpenseData]);
+
+  const hasChartData = useMemo(
+    () => incomeVsExpenseData.some((d) => d.income > 0 || d.expense > 0),
+    [incomeVsExpenseData]
+  );
 
   const expenseByCategory = useMemo(() => getExpenseByCategory(chartFilter), [chartFilter, getExpenseByCategory]);
 
@@ -84,6 +104,60 @@ export default function Dashboard() {
     () => debts.filter((d) => d.direction === 'BORROWED' && d.status === 'OPEN').reduce((s, d) => s + d.amount, 0),
     [debts]
   );
+
+  const smartAlerts = useMemo(() => {
+    return generateSmartAlerts({
+      transactions,
+      budgetStatus: budgetStatus ?? [],
+      accounts: [],
+      totalBalance,
+      monthlyIncome: monthlyIncome || 0,
+      totalDebtsOwed,
+    });
+  }, [transactions, budgetStatus, totalBalance, monthlyIncome, totalDebtsOwed]);
+
+  const predictionResult = useMemo(
+    () =>
+      generatePredictions({
+        transactions,
+        budgetStatus: budgetStatus ?? [],
+      }),
+    [transactions, budgetStatus]
+  );
+
+  const financialRiskScore = useMemo(() => {
+    const income = monthlyIncome || 1;
+    const expense = monthlyExpense;
+    const debtAmount = totalDebtsOwed;
+    const savingsBalance = totalBalance;
+    let score = 100;
+    if (expense > income) score -= 40;
+    if (debtAmount > income * 0.5) score -= 30;
+    if (savingsBalance < income * 0.2) score -= 20;
+    if (income > expense * 1.5) score += 10;
+    score = Math.max(0, Math.min(100, score));
+    let label: string;
+    let recommendation: string;
+    let color: string;
+    if (score >= 80) {
+      label = 'Excellent';
+      recommendation = 'Your finances are in great shape. Keep saving and tracking.';
+      color = '#10B981';
+    } else if (score >= 60) {
+      label = 'Good';
+      recommendation = 'Your spending is slightly high compared to income. Consider trimming non-essentials.';
+      color = '#059669';
+    } else if (score >= 40) {
+      label = 'Moderate';
+      recommendation = 'Expenses or debt are elevated. Focus on reducing spending and paying down debt.';
+      color = '#D97706';
+    } else {
+      label = 'High Risk';
+      recommendation = 'Income does not cover expenses or debt is high. Prioritize a budget and debt repayment.';
+      color = '#DC2626';
+    }
+    return { score, label, recommendation, color };
+  }, [monthlyIncome, monthlyExpense, totalDebtsOwed, totalBalance]);
 
   const isIncome = (type: string) => type === 'INCOME';
   const isExpense = (type: string) => type === 'EXPENSE';
@@ -178,105 +252,219 @@ export default function Dashboard() {
         </Card>
       </div>
 
+      {/* Smart Alerts */}
+      {smartAlerts.length > 0 && (
+        <SmartAlertsPanel alerts={smartAlerts} />
+      )}
+
+      {/* Predictive Insights */}
+      {predictionResult.predictions.length > 0 && (
+        <Card>
+          <PredictiveInsightsWidget result={predictionResult} />
+        </Card>
+      )}
+
+      {/* Financial Risk Score */}
+      <Card>
+        <h3 className="text-lg font-semibold text-[#0F172A] mb-4">Financial Risk Score</h3>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div
+              className="w-16 h-16 rounded-xl flex items-center justify-center text-2xl font-bold text-white shrink-0"
+              style={{ backgroundColor: financialRiskScore.color }}
+              aria-label={`Score ${financialRiskScore.score}`}
+            >
+              {financialRiskScore.score}
+            </div>
+            <div>
+              <p className="text-sm text-[#64748B]">Score: {financialRiskScore.score}</p>
+              <p className="font-semibold text-[#0F172A]" style={{ color: financialRiskScore.color }}>
+                {financialRiskScore.label}
+              </p>
+            </div>
+          </div>
+          <p className="text-sm text-[#64748B] max-w-md">{financialRiskScore.recommendation}</p>
+        </div>
+      </Card>
+
+      {/* Chart period summary */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="!py-4">
+          <p className="text-sm text-[#64748B] mb-1">Total Income</p>
+          <p className="text-xl font-bold text-[#16a34a]">{formatUzs(chartPeriodTotals.totalIncome)}</p>
+          <p className="text-xs text-[#94A3B8] mt-1">so&apos;m · chart period</p>
+        </Card>
+        <Card className="!py-4">
+          <p className="text-sm text-[#64748B] mb-1">Total Expense</p>
+          <p className="text-xl font-bold text-[#ef4444]">{formatUzs(chartPeriodTotals.totalExpense)}</p>
+          <p className="text-xs text-[#94A3B8] mt-1">so&apos;m · chart period</p>
+        </Card>
+        <Card className="!py-4">
+          <p className="text-sm text-[#64748B] mb-1">Net Balance</p>
+          <p className={`text-xl font-bold ${chartPeriodTotals.netBalance >= 0 ? 'text-[#16a34a]' : 'text-[#ef4444]'}`}>
+            {formatUzsSigned(chartPeriodTotals.netBalance)}
+          </p>
+          <p className="text-xs text-[#94A3B8] mt-1">so&apos;m · chart period</p>
+        </Card>
+      </div>
+
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="lg:col-span-2">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h3 className="text-lg font-semibold text-[#0F172A]">Income vs Expense</h3>
-              <p className="text-sm text-[#64748B]">Last 6 months overview</p>
+              <p className="text-sm text-[#64748B]">
+                {chartFilter === 'yearly' ? 'Last 12 months' : 'Last 6 months'}
+              </p>
             </div>
-            <Select
-              options={[
-                { value: 'monthly', label: 'Monthly' },
-                { value: 'yearly', label: 'Yearly' },
-              ]}
-              className="w-40"
-              value={chartFilter}
-              onChange={(e) => setChartFilter(e.target.value as TimeFilter)}
-            />
+            <div className="inline-flex rounded-xl bg-[#F1F5F9] p-1" role="tablist" aria-label="Chart period">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={chartFilter === 'monthly'}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  chartFilter === 'monthly' ? 'bg-white text-[#0F172A] shadow-sm' : 'text-[#64748B] hover:text-[#0F172A]'
+                }`}
+                onClick={() => setChartFilter('monthly')}
+              >
+                Monthly
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={chartFilter === 'yearly'}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  chartFilter === 'yearly' ? 'bg-white text-[#0F172A] shadow-sm' : 'text-[#64748B] hover:text-[#0F172A]'
+                }`}
+                onClick={() => setChartFilter('yearly')}
+              >
+                Yearly
+              </button>
+            </div>
           </div>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={incomeVsExpenseData} id="dashboard-income-expense-chart">
-              <CartesianGrid key="grid-dashboard" strokeDasharray="3 3" stroke="#E2E8F0" />
-              <XAxis key="xaxis-dashboard" dataKey="month" stroke="#64748B" />
-              <YAxis key="yaxis-dashboard" stroke="#64748B" tickFormatter={(v) => formatUzs(v, { compact: true })} />
-              <Tooltip
-                key="tooltip-dashboard"
-                contentStyle={{
-                  backgroundColor: '#FFFFFF',
-                  border: '1px solid #E2E8F0',
-                  borderRadius: '12px',
-                  padding: '12px',
-                }}
-                formatter={(value: number) => [formatUzs(value), '']}
-              />
-              <Legend key="legend-dashboard" />
-              <Line
-                key="income-line-dashboard"
-                type="monotone"
-                dataKey="income"
-                stroke="#10B981"
-                strokeWidth={3}
-                dot={{ fill: '#10B981', r: 4 }}
-              />
-              <Line
-                key="expense-line-dashboard"
-                type="monotone"
-                dataKey="expense"
-                stroke="#DC2626"
-                strokeWidth={3}
-                dot={{ fill: '#DC2626', r: 4 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+          {!hasChartData ? (
+            <div className="flex flex-col items-center justify-center py-16 px-4 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0]">
+              <p className="text-[#64748B] text-center">No transactions available for this period.</p>
+              <p className="text-sm text-[#94A3B8] mt-1 text-center">Add income or expense transactions to see trends.</p>
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart
+                data={incomeVsExpenseData}
+                id="dashboard-income-expense-chart"
+                margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
+                <XAxis dataKey="month" stroke="#64748B" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+                <YAxis stroke="#64748B" tick={{ fontSize: 12 }} tickFormatter={(v) => formatUzs(v, { compact: true })} axisLine={false} tickLine={false} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: '#FFFFFF',
+                    border: '1px solid #E2E8F0',
+                    borderRadius: '12px',
+                    padding: '12px 16px',
+                    boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+                  }}
+                  labelFormatter={(_, payload) => payload?.[0]?.payload?.month ?? ''}
+                  formatter={(value: number, name: string) => [formatUzs(value), name === 'income' ? 'Income' : 'Expense']}
+                  labelStyle={{ color: '#0F172A', fontWeight: 600 }}
+                />
+                <Legend
+                  wrapperStyle={{ paddingTop: '8px' }}
+                  formatter={(value) => <span className="text-sm text-[#64748B]">{value === 'income' ? 'Income' : 'Expense'}</span>}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="income"
+                  name="income"
+                  stroke="#16a34a"
+                  strokeWidth={2.5}
+                  dot={{ fill: '#16a34a', r: 5, strokeWidth: 0 }}
+                  activeDot={{ r: 7, fill: '#16a34a', stroke: '#fff', strokeWidth: 2 }}
+                  isAnimationActive
+                  animationDuration={400}
+                  animationEasing="ease-out"
+                />
+                <Line
+                  type="monotone"
+                  dataKey="expense"
+                  name="expense"
+                  stroke="#ef4444"
+                  strokeWidth={2.5}
+                  dot={{ fill: '#ef4444', r: 5, strokeWidth: 0 }}
+                  activeDot={{ r: 7, fill: '#ef4444', stroke: '#fff', strokeWidth: 2 }}
+                  isAnimationActive
+                  animationDuration={400}
+                  animationEasing="ease-out"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
         </Card>
 
         <Card>
           <h3 className="text-lg font-semibold text-[#0F172A] mb-6">Expense by Category</h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <PieChart id="dashboard-expense-category-chart">
-              <Pie
-                key="pie-dashboard"
-                data={expenseByCategory}
-                cx="50%"
-                cy="50%"
-                innerRadius={60}
-                outerRadius={90}
-                paddingAngle={2}
-                dataKey="value"
-              >
-                {expenseByCategory.map((entry) => (
-                  <Cell key={`cell-${entry.name}`} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip
-                key="tooltip-dashboard-pie"
-                contentStyle={{
-                  backgroundColor: '#FFFFFF',
-                  border: '1px solid #E2E8F0',
-                  borderRadius: '12px',
-                }}
-                formatter={(value: number) => [formatUzs(value), '']}
-              />
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="mt-4 space-y-2">
-            {expenseByCategory.map((category) => (
-              <div key={category.name} className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div
-                    className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: category.color }}
+          {expenseByCategory.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 px-4 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0]">
+              <p className="text-[#64748B] text-sm text-center">No expense data for this period.</p>
+            </div>
+          ) : (
+            <>
+              <ResponsiveContainer width="100%" height={250}>
+                <PieChart id="dashboard-expense-category-chart">
+                  <Pie
+                    data={expenseByCategory}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={90}
+                    paddingAngle={2}
+                    dataKey="value"
+                    isAnimationActive
+                    animationDuration={400}
+                    animationEasing="ease-out"
+                    label={({ name, percent }) => (percent != null ? `${name} ${percent.toFixed(0)}%` : name)}
+                    labelLine={{ stroke: '#94A3B8', strokeWidth: 1 }}
+                  >
+                    {expenseByCategory.map((entry) => (
+                      <Cell key={`cell-${entry.name}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: '#FFFFFF',
+                      border: '1px solid #E2E8F0',
+                      borderRadius: '12px',
+                      padding: '12px',
+                      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+                    }}
+                    formatter={(value: number, _, props: { payload?: { name: string; percent?: number } }) => [
+                      `${formatUzs(value)}${props.payload?.percent != null ? ` (${props.payload.percent.toFixed(0)}%)` : ''}`,
+                      props.payload?.name ?? '',
+                    ]}
                   />
-                  <span className="text-sm text-[#64748B]">{category.name}</span>
-                </div>
-                <span className="text-sm font-medium text-[#0F172A]">
-                  {formatUzs(category.value)}
-                </span>
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="mt-4 space-y-2">
+                {expenseByCategory.map((category) => (
+                  <div key={category.name} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-3 h-3 rounded-full shrink-0"
+                        style={{ backgroundColor: category.color }}
+                      />
+                      <span className="text-sm text-[#64748B]">{category.name}</span>
+                    </div>
+                    <span className="text-sm font-medium text-[#0F172A]">
+                      {formatUzs(category.value)}
+                      {category.percentage != null ? ` (${category.percentage}%)` : ''}
+                    </span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </>
+          )}
         </Card>
       </div>
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Modal } from './modal';
 import { Button } from './button';
 import { Input } from './input';
@@ -7,6 +7,9 @@ import { Badge } from './badge';
 import { Sparkles, Mic, Loader2, AlertCircle } from 'lucide-react';
 import { useFinance } from '../../store/FinanceStore';
 import { formatUzs } from '../../utils/currency';
+import { suggestCategory, getCategoryIdForSlug } from '../../services/autoCategory';
+
+const DESCRIPTION_DEBOUNCE_MS = 300;
 
 interface AddTransactionModalProps {
   isOpen: boolean;
@@ -124,6 +127,8 @@ export function AddTransactionModal({ isOpen, onClose }: AddTransactionModalProp
   const [showLowConfidence, setShowLowConfidence] = useState(false);
 
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [categorySuggested, setCategorySuggested] = useState(false);
+  const descriptionDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [formData, setFormData] = useState<ParsedTransaction>({
     type: 'expense',
     amount: '',
@@ -155,6 +160,25 @@ export function AddTransactionModal({ isOpen, onClose }: AddTransactionModalProp
     }
     return base;
   }, [formData.type, incomeCategories, expenseCategories, transferCategories]);
+
+  const applyCategorySuggestion = useCallback(
+    (description: string, opts: { value: string; label: string }[]) => {
+      const slug = suggestCategory(description);
+      if (!slug) return;
+      const id = getCategoryIdForSlug(slug, opts.filter((o) => o.value));
+      if (id) {
+        setFormData((prev) => ({ ...prev, category: id }));
+        setCategorySuggested(true);
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    return () => {
+      if (descriptionDebounceRef.current) clearTimeout(descriptionDebounceRef.current);
+    };
+  }, []);
 
   const accountOptions = React.useMemo(() => {
     const opts = [{ value: '', label: 'Select account' }];
@@ -230,7 +254,12 @@ export function AddTransactionModal({ isOpen, onClose }: AddTransactionModalProp
   };
 
   const handleClose = () => {
+    if (descriptionDebounceRef.current) {
+      clearTimeout(descriptionDebounceRef.current);
+      descriptionDebounceRef.current = null;
+    }
     setSubmitError(null);
+    setCategorySuggested(false);
     setEntryMode('manual');
     setSmartInput('');
     setAiParsed(false);
@@ -396,13 +425,23 @@ export function AddTransactionModal({ isOpen, onClose }: AddTransactionModalProp
               required
             />
 
-            <Select
-              label="Category"
-              options={categoryOptions}
-              value={formData.category}
-              onChange={(e) => updateField('category', e.target.value)}
-              required
-            />
+            <div>
+              <Select
+                label="Category"
+                options={categoryOptions}
+                value={formData.category}
+                onChange={(e) => {
+                  updateField('category', e.target.value);
+                  setCategorySuggested(false);
+                }}
+                required
+              />
+              {categorySuggested && (
+                <p className="text-xs text-[#64748B] mt-1.5" role="status">
+                  Suggested category based on description
+                </p>
+              )}
+            </div>
 
             <Select
               label="Account"
@@ -443,7 +482,17 @@ export function AddTransactionModal({ isOpen, onClose }: AddTransactionModalProp
               <label className="block text-sm mb-2 text-[#0F172A]">Description</label>
               <textarea
                 value={formData.description}
-                onChange={(e) => updateField('description', e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  updateField('description', value);
+                  if (formData.type === 'income' || formData.type === 'expense' || formData.type === 'transfer') {
+                    if (descriptionDebounceRef.current) clearTimeout(descriptionDebounceRef.current);
+                    descriptionDebounceRef.current = setTimeout(() => {
+                      applyCategorySuggestion(value, categoryOptions);
+                      descriptionDebounceRef.current = null;
+                    }, DESCRIPTION_DEBOUNCE_MS);
+                  }
+                }}
                 className="w-full px-4 py-2.5 rounded-xl border border-[#E2E8F0] bg-white text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#1E40AF] focus:border-transparent transition-all"
                 rows={3}
                 placeholder="Add notes..."

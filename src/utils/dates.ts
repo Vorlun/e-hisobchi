@@ -41,3 +41,20 @@ export function getStatsDateRange(filter: TimeFilter): { dateFrom: string; dateT
   const dateTo = getTodayString();
   return { dateFrom: startDateStr, dateTo };
 }
+
+/** Quick date ranges for transaction filters. Returns dateFrom and dateTo (YYYY-MM-DD). */
+export function getQuickDateRange(
+  preset: 'today' | 'this_week' | 'this_month'
+): { dateFrom: string; dateTo: string } {
+  const today = getTodayString();
+  const now = new Date();
+  if (preset === 'today') {
+    return { dateFrom: today, dateTo: today };
+  }
+  if (preset === 'this_week') {
+    const { startDateStr } = getStartOfRange('weekly');
+    return { dateFrom: startDateStr, dateTo: today };
+  }
+  const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+  return { dateFrom: monthStart, dateTo: today };
+}

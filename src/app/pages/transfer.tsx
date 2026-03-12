@@ -7,15 +7,25 @@ import { Badge } from '../components/badge';
 import { ArrowRight, ArrowLeftRight, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useFinance } from '../../store/FinanceStore';
 import { formatUzs } from '../../utils/currency';
+import { getTodayString } from '../../utils/dates';
+
+const PURPOSE_OTHER = '__other__';
 
 export default function Transfer() {
-  const { accounts, transactions, transfers, addTransfer, loadingTransfers } = useFinance();
+  const { accounts, transactions, transfers, transferPurposes, addTransfer, loadTransferPurposes, loadingTransfers } = useFinance();
   const [fromAccount, setFromAccount] = useState('');
   const [toAccount, setToAccount] = useState('');
   const [amount, setAmount] = useState('');
   const [exchangeRate, setExchangeRate] = useState('');
+  const [purpose, setPurpose] = useState('');
+  const [customPurpose, setCustomPurpose] = useState('');
   const [description, setDescription] = useState('');
+  const [transferDate, setTransferDate] = useState(getTodayString());
   const [showSuccess, setShowSuccess] = useState(false);
+
+  React.useEffect(() => {
+    void loadTransferPurposes();
+  }, [loadTransferPurposes]);
 
   const fromAccData = accounts.find((acc) => acc.id === fromAccount);
   const toAccData = accounts.find((acc) => acc.id === toAccount);
@@ -27,8 +37,9 @@ export default function Transfer() {
   const handleTransfer = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fromAccount || !toAccount || !amountNum) return;
+    const purposeToSend = customPurpose.trim() || (purpose === PURPOSE_OTHER ? undefined : purpose) || undefined;
     try {
-      await addTransfer(fromAccount, toAccount, amountNum, description || 'Transfer');
+      await addTransfer(fromAccount, toAccount, amountNum, description || 'Transfer', purposeToSend);
       setShowSuccess(true);
       setTimeout(() => {
         setShowSuccess(false);
@@ -36,7 +47,10 @@ export default function Transfer() {
         setToAccount('');
         setAmount('');
         setExchangeRate('');
+        setPurpose('');
+        setCustomPurpose('');
         setDescription('');
+        setTransferDate(getTodayString());
       }, 2000);
     } catch {
       // Error surfaced by store / API; keep form state
@@ -54,6 +68,7 @@ export default function Transfer() {
           amount: t.fromAmount,
           date: t.date,
           currency: t.fromCurrency ?? 'UZS',
+          purpose: t.purposeNameUz ?? t.purpose ?? null,
         };
       });
     }
@@ -68,6 +83,7 @@ export default function Transfer() {
         amount: t.amount,
         date: t.date,
         currency: from?.currency ?? 'UZS',
+        purpose: null as string | null,
       };
     });
   }, [transfers, transactions, accounts]);
@@ -145,6 +161,52 @@ export default function Transfer() {
               onChange={(e) => setAmount(e.target.value)}
               required
             />
+            <div>
+              <label className="block text-sm mb-2 text-[#0F172A]">Purpose</label>
+              <Select
+                options={[
+                  { value: '', label: 'Select purpose' },
+                  ...(transferPurposes ?? []).map((p) => ({
+                    value: p.code,
+                    label: p.nameUz || p.nameEn || p.nameRu || p.code,
+                  })),
+                  { value: PURPOSE_OTHER, label: 'Other (type below)' },
+                ]}
+                value={purpose}
+                onChange={(e) => {
+                  setPurpose(e.target.value);
+                  if (e.target.value !== PURPOSE_OTHER) setCustomPurpose('');
+                }}
+                aria-label="Purpose"
+              />
+              {purpose === PURPOSE_OTHER && (
+                <Input
+                  label=""
+                  type="text"
+                  placeholder="e.g. Rent payment"
+                  value={customPurpose}
+                  onChange={(e) => setCustomPurpose(e.target.value)}
+                  className="mt-2"
+                />
+              )}
+            </div>
+            <div>
+              <label className="block text-sm mb-2 text-[#0F172A]">Description (Optional)</label>
+              <textarea
+                className="w-full px-4 py-2.5 rounded-xl border border-[#E2E8F0] bg-white text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#1E40AF] focus:border-transparent transition-all"
+                rows={3}
+                placeholder="Add transfer notes..."
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              />
+            </div>
+            <Input
+              label="Date"
+              type="date"
+              value={transferDate}
+              onChange={(e) => setTransferDate(e.target.value)}
+              required
+            />
             {isDifferentCurrency && (
               <div className="p-4 bg-[#FEF3C7] border border-[#F59E0B]/20 rounded-xl space-y-3">
                 <div className="flex items-center gap-2 text-[#D97706]">
@@ -170,16 +232,6 @@ export default function Transfer() {
                 )}
               </div>
             )}
-            <div>
-              <label className="block text-sm mb-2 text-[#0F172A]">Description (Optional)</label>
-              <textarea
-                className="w-full px-4 py-2.5 rounded-xl border border-[#E2E8F0] bg-white text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#1E40AF] focus:border-transparent transition-all"
-                rows={3}
-                placeholder="Add transfer notes..."
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-              />
-            </div>
             <Button type="submit" className="w-full flex items-center justify-center gap-2" size="lg">
               <ArrowLeftRight className="w-5 h-5" aria-hidden />
               Complete Transfer
@@ -261,6 +313,7 @@ export default function Transfer() {
                       day: 'numeric',
                       year: 'numeric',
                     })}
+                    {transfer.purpose ? ` · ${transfer.purpose}` : ''}
                   </p>
                 </div>
               </div>

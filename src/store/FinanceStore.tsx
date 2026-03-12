@@ -74,6 +74,7 @@ function mapApiTransactionToTransaction(apiTx: transactionsApi.Transaction): Tra
     categoryName: apiTx.categoryName,
     transferToAccountId: apiTx.transferToAccountId,
     transferToAccountName: apiTx.transferToAccountName,
+    transferPurposeName: apiTx.transferPurposeName,
   };
 }
 
@@ -207,7 +208,7 @@ interface FinanceContextValue extends FinanceState {
   addTransaction: (data: Omit<Transaction, 'id' | 'createdAt'>) => void | Promise<void>;
   updateTransaction: (id: string, data: Partial<Transaction>) => void | Promise<void>;
   deleteTransaction: (id: string) => void | Promise<void>;
-  addTransfer: (fromAccountId: string, toAccountId: string, amount: number, title?: string) => void | Promise<void>;
+  addTransfer: (fromAccountId: string, toAccountId: string, amount: number, title?: string, purpose?: string) => void | Promise<void>;
   addBudget: (category: string, limit: number) => void;
   updateBudget: (id: string, data: Partial<Budget>) => void;
   updateBudgetSpent: (categoryId: string, spent: number) => void;
@@ -766,7 +767,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   );
 
   const addTransfer = useCallback(
-    async (fromAccountId: string, toAccountId: string, amount: number, title = 'Transfer') => {
+    async (fromAccountId: string, toAccountId: string, amount: number, title = 'Transfer', purpose?: string) => {
       if (isApiAvailable) {
         const validation = validateTransfer(fromAccountId, toAccountId, amount, accounts);
         if (!validation.valid) throw new Error(validation.error);
@@ -775,6 +776,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
           toAccountId,
           amount: Math.abs(amount),
           description: title,
+          purpose: purpose || undefined,
         });
         await loadTransfers();
         await loadAccounts();

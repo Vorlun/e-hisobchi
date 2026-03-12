@@ -42,7 +42,11 @@ export function Sidebar({ collapsed = false, onToggleCollapse }: SidebarProps) {
       }`}
     >
       <div className="p-6 border-b border-[#E2E8F0] flex items-center justify-between">
-        {!collapsed && <Logo size="sm" />}
+        {collapsed ? (
+          <Logo size="sm" variant="icon" />
+        ) : (
+          <Logo size="sm" variant="full" />
+        )}
         <button
           type="button"
           onClick={onToggleCollapse}

@@ -19,6 +19,8 @@ export interface Transaction {
   date: string;
   transferToAccountId?: string;
   transferToAccountName?: string;
+  /** Transfer purpose display name (when type is TRANSFER). */
+  transferPurposeName?: string;
 }
 
 export interface TransactionFilters {
