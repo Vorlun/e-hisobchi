@@ -33,13 +33,37 @@ export default function Login() {
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    const trimmedFullName = fullName.trim();
+    const trimmedEmail = email.trim();
+    const trimmedPhone = phoneNumber.trim().replace(/\s+/g, '');
+    const currency = defaultCurrency && defaultCurrency !== 'string' ? defaultCurrency : 'UZS';
+
+    // Basic frontend validation to avoid obvious 400s
+    if (!trimmedFullName) {
+      setError('Full name is required');
+      return;
+    }
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailPattern.test(trimmedEmail)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters long');
+      return;
+    }
+    if (!trimmedPhone.startsWith('+998') || trimmedPhone.length !== 13) {
+      setError('Phone number must be in format +998XXXXXXXXX');
+      return;
+    }
+
     try {
       await register({
-        fullName: fullName.trim(),
-        email: email.trim(),
+        fullName: trimmedFullName,
+        email: trimmedEmail,
         password,
-        phoneNumber: phoneNumber.trim(),
-        defaultCurrency: defaultCurrency || 'UZS',
+        phoneNumber: trimmedPhone,
+        defaultCurrency: currency || 'UZS',
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed');
