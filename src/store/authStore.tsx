@@ -59,7 +59,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [accessTokenState, setAccessTokenState] = useState<string | null>(getAccessToken());
   const [refreshTokenState, setRefreshTokenState] = useState<string | null>(getRefreshToken());
 
-  const isAuthenticated = Boolean(user && accessTokenState);
+  /** Authenticated if we have an access token (persists across refresh). User may still be loading. */
+  const isAuthenticated = Boolean(accessTokenState || getAccessToken());
 
   const setSessionToken = useCallback((token: string | null) => {
     setSessionTokenState(token);
@@ -68,6 +69,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loadUser = useCallback(async () => {
     if (!getAccessToken()) {
       setUser(null);
+      setAccessTokenState(null);
+      setRefreshTokenState(null);
       setLoading(false);
       return;
     }
@@ -77,6 +80,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       clearTokens();
       setUser(null);
+      setAccessTokenState(null);
+      setRefreshTokenState(null);
     } finally {
       setLoading(false);
     }

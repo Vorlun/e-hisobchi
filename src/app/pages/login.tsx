@@ -4,6 +4,7 @@ import { Logo } from '../components/logo';
 import { Button } from '../components/button';
 import { Lock, Mail, ShieldCheck, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useAuth } from '../../store/authStore';
+import { getAccessToken } from '../../services/tokenStorage';
 
 function GoogleIcon() {
   return (
@@ -39,7 +40,7 @@ export default function Login() {
     }
   }, [location.pathname, location.state, navigate]);
 
-  if (isAuthenticated) {
+  if (getAccessToken() || isAuthenticated) {
     return <Navigate to="/" replace />;
   }
 
