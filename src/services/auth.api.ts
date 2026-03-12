@@ -11,17 +11,32 @@ export interface LoginRequest {
   deviceId: string;
 }
 
-export interface LoginData {
+export interface LoginDataSession {
   sessionToken: string;
   maskedEmail?: string;
   emailVerified?: boolean;
   phoneVerified?: boolean;
+  otpRequired?: boolean;
+}
+
+export interface LoginDataDirect {
+  accessToken: string;
+  refreshToken: string;
+  user?: AuthUser;
+}
+
+/** Login response: either OTP required (sessionToken) or direct (accessToken + refreshToken). */
+export type LoginData = LoginDataSession | LoginDataDirect;
+
+function isLoginDirect(data: LoginData): data is LoginDataDirect {
+  return 'accessToken' in data && 'refreshToken' in data;
 }
 
 // Legacy shape with success/data wrapper (kept for compatibility)
 export interface LoginResponse {
   success: boolean;
-  data: LoginData;
+  data: LoginDataSession | LoginDataDirect;
+  message?: string;
 }
 
 export interface VerifyOtpRequest {
@@ -88,24 +103,31 @@ export async function login(
   password: string,
   deviceId: string
 ): Promise<LoginData> {
-  const res = await api<LoginResponse | LoginData>('/auth/login', {
+  const res = await api<LoginResponse | LoginDataSession | LoginDataDirect>('/auth/login', {
     method: 'POST',
     body: JSON.stringify({ identifier, password, deviceId }),
   });
 
-  if (res && typeof res === 'object' && 'sessionToken' in res) {
-    const direct = res as LoginData;
-    if (!direct.sessionToken) {
-      throw new Error('Invalid login response');
-    }
-    return direct;
+  if (res && typeof res === 'object' && 'success' in res && (res as LoginResponse).success === false) {
+    const r = res as LoginResponse & { message?: string };
+    throw new Error(r.message || 'Login failed');
   }
 
-  const wrapped = res as LoginResponse;
-  if (!wrapped?.success || !wrapped.data?.sessionToken) {
+  let data: LoginData;
+  if (res && typeof res === 'object' && 'data' in res) {
+    data = (res as LoginResponse).data;
+  } else if (res && typeof res === 'object') {
+    data = res as LoginDataSession | LoginDataDirect;
+  } else {
     throw new Error('Invalid login response');
   }
-  return wrapped.data;
+
+  if (isLoginDirect(data)) {
+    if (!data.accessToken || !data.refreshToken) throw new Error('Invalid login response');
+    return data;
+  }
+  if (!data.sessionToken) throw new Error('Invalid login response');
+  return data;
 }
 
 export async function verifyLoginOtp(
@@ -151,10 +173,13 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
 }
 
 export async function register(data: RegisterRequest): Promise<void> {
-  await api('/auth/register', {
+  const res = await api<{ success?: boolean; message?: string }>('/auth/register', {
     method: 'POST',
     body: JSON.stringify(data),
   });
+  if (res && typeof res === 'object' && res.success === false) {
+    throw new Error(res.message || 'Registration failed');
+  }
 }
 
 export async function getGoogleUrl(): Promise<string> {

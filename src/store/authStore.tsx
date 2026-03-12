@@ -8,10 +8,10 @@ import { getAccessToken, getRefreshToken, setTokens, clearTokens } from '../serv
 const DEVICE_ID_KEY = 'ehisobchi_device_id';
 
 function getOrCreateDeviceId(): string {
-  let id = sessionStorage.getItem(DEVICE_ID_KEY);
+  let id = localStorage.getItem(DEVICE_ID_KEY);
   if (!id) {
     id = `device_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;
-    sessionStorage.setItem(DEVICE_ID_KEY, id);
+    localStorage.setItem(DEVICE_ID_KEY, id);
   }
   return id;
 }
@@ -102,12 +102,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const deviceId = getOrCreateDeviceId();
         const data = await authApi.login(identifier, password, deviceId);
-        setSessionTokenState(data.sessionToken);
+        if ('accessToken' in data && data.accessToken) {
+          setTokens(data.accessToken, data.refreshToken);
+          setAccessTokenState(data.accessToken);
+          setRefreshTokenState(data.refreshToken);
+          try {
+            const profile = await userApi.getProfile();
+            setUser(profile);
+          } catch {
+            setUser(null);
+          }
+          setSessionTokenState(null);
+          navigate('/', { replace: true });
+        } else {
+          setSessionTokenState(data.sessionToken);
+        }
       } finally {
         setLoading(false);
       }
     },
-    []
+    [navigate]
   );
 
   const verifyOtp = useCallback(
@@ -119,8 +133,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setTokens(res.accessToken, res.refreshToken);
         setAccessTokenState(res.accessToken);
         setRefreshTokenState(res.refreshToken);
-        const profile = await userApi.getProfile();
-        setUser(profile);
+        try {
+          const profile = await userApi.getProfile();
+          setUser(profile);
+        } catch {
+          setUser(null);
+        }
         setSessionTokenState(null);
         navigate('/', { replace: true });
       } finally {
@@ -141,7 +159,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(true);
       try {
         await authApi.register(data);
-        navigate('/login', { replace: true });
+        navigate('/login', { replace: true, state: { registerSuccess: true } });
       } finally {
         setLoading(false);
       }
