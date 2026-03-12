@@ -1,5 +1,6 @@
 const ACCESS_TOKEN_KEY = 'ehisobchi_access_token';
 const REFRESH_TOKEN_KEY = 'ehisobchi_refresh_token';
+const USER_KEY = 'ehisobchi_user';
 
 export function getAccessToken(): string | null {
   return localStorage.getItem(ACCESS_TOKEN_KEY);
@@ -14,9 +15,27 @@ export function setTokens(accessToken: string, refreshToken: string): void {
   localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
 }
 
+export function setStoredUser(user: unknown): void {
+  try {
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
+  } catch {
+    localStorage.removeItem(USER_KEY);
+  }
+}
+
+export function getStoredUser(): unknown {
+  try {
+    const raw = localStorage.getItem(USER_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
 export function clearTokens(): void {
   localStorage.removeItem(ACCESS_TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
 }
 
 export function hasTokens(): boolean {

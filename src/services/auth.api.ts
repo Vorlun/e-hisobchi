@@ -48,7 +48,19 @@ export interface VerifyOtpResponse {
   accessToken: string;
   refreshToken: string;
   expiresIn?: number;
-  user: AuthUser;
+  user?: AuthUser;
+}
+
+/** Backend wraps success responses in { success, message?, data }. */
+export interface WrappedVerifyOtpResponse {
+  success: boolean;
+  message?: string;
+  data: {
+    accessToken: string;
+    refreshToken: string;
+    expiresIn?: number;
+    user?: AuthUser;
+  };
 }
 
 export interface AuthUser {
@@ -134,14 +146,22 @@ export async function verifyLoginOtp(
   sessionToken: string,
   code: string
 ): Promise<VerifyOtpResponse> {
-  const res = await api<VerifyOtpResponse>('/auth/login/verify-otp', {
+  const res = await api<WrappedVerifyOtpResponse | VerifyOtpResponse>('/auth/login/verify-otp', {
     method: 'POST',
     body: JSON.stringify({ sessionToken, code }),
   });
-  if (!res?.accessToken || !res?.refreshToken) {
+  if (res && typeof res === 'object' && 'success' in res && (res as WrappedVerifyOtpResponse).success === false) {
+    const r = res as WrappedVerifyOtpResponse & { message?: string };
+    throw new Error(r.message || 'Verification failed');
+  }
+  const data =
+    res && typeof res === 'object' && 'data' in res
+      ? (res as WrappedVerifyOtpResponse).data
+      : (res as VerifyOtpResponse);
+  if (!data?.accessToken || !data?.refreshToken) {
     throw new Error('Invalid verify OTP response');
   }
-  return res;
+  return data;
 }
 
 export async function refreshToken(refreshTokenValue: string): Promise<RefreshResponse> {

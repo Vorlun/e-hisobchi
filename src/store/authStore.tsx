@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router';
 import type { UserProfile } from '../services/user.api';
 import * as authApi from '../services/auth.api';
 import * as userApi from '../services/user.api';
-import { getAccessToken, getRefreshToken, setTokens, clearTokens } from '../services/tokenStorage';
+import { getAccessToken, getRefreshToken, setTokens, setStoredUser, clearTokens } from '../services/tokenStorage';
 
 const DEVICE_ID_KEY = 'ehisobchi_device_id';
 
@@ -133,6 +133,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setTokens(res.accessToken, res.refreshToken);
         setAccessTokenState(res.accessToken);
         setRefreshTokenState(res.refreshToken);
+        if (res.user) setStoredUser(res.user);
         try {
           const profile = await userApi.getProfile();
           setUser(profile);

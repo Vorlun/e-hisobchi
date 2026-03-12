@@ -16,6 +16,11 @@ interface RefreshResponse {
   expiresIn?: number;
 }
 
+interface WrappedRefreshResponse {
+  success?: boolean;
+  data?: { accessToken: string; refreshToken: string; expiresIn?: number };
+}
+
 async function attemptRefresh(): Promise<boolean> {
   const refreshToken = getRefreshToken();
   if (!refreshToken) return false;
@@ -26,7 +31,8 @@ async function attemptRefresh(): Promise<boolean> {
     body: JSON.stringify({ refreshToken }),
   });
   if (!res.ok) return false;
-  const data = (await res.json()) as RefreshResponse;
+  const raw = (await res.json()) as RefreshResponse | WrappedRefreshResponse;
+  const data = raw && typeof raw === 'object' && 'data' in raw && raw.data ? raw.data : (raw as RefreshResponse);
   if (data.accessToken && data.refreshToken) {
     setTokens(data.accessToken, data.refreshToken);
     return true;
