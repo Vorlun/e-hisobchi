@@ -10,6 +10,7 @@ export interface UserProfile {
   email: string;
   phoneNumber: string;
   defaultCurrency: string;
+  emailVerified?: boolean;
 }
 
 export interface UpdateProfileRequest {

@@ -52,13 +52,12 @@ function formatUzPhoneInput(input: string): string {
 export default function Login() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { login, verifyOtp, register, googleLogin, isAuthenticated, loading, sessionToken } = useAuth();
+  const { login, register, googleLogin, isAuthenticated, loading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [defaultCurrency, setDefaultCurrency] = useState('UZS');
-  const [otpCode, setOtpCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
@@ -147,18 +146,6 @@ export default function Login() {
     }
   };
 
-  const handleOtpSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    try {
-      await verifyOtp(otpCode.trim());
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Verification failed');
-    }
-  };
-
-  const showOtpStep = Boolean(sessionToken);
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#F8FAFC] via-[#EFF6FF] to-[#F0FDF4] flex items-center justify-center p-4">
       <div className="w-full max-w-md">
@@ -181,33 +168,7 @@ export default function Login() {
             </p>
           )}
 
-          {showOtpStep ? (
-            <form onSubmit={handleOtpSubmit} className="space-y-5">
-              <div>
-                <label className="block text-sm mb-2 text-[#0F172A]">
-                  Verification code
-                </label>
-                <div className="relative">
-                  <ShieldCheck className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#94A3B8]" aria-hidden />
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    value={otpCode}
-                    onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    placeholder="000000"
-                    className="w-full pl-12 pr-4 py-2.5 rounded-xl border border-[#E2E8F0] bg-white text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#1E40AF] focus:border-transparent transition-all"
-                    required
-                    maxLength={6}
-                  />
-                </div>
-              </div>
-              <Button type="submit" className="w-full" size="lg" disabled={loading || !isRegisterFormValid}>
-                {loading ? <Loader2 className="w-5 h-5 animate-spin" aria-hidden /> : null}
-                {loading ? 'Verifying…' : 'Verify'}
-              </Button>
-            </form>
-          ) : mode === 'login' ? (
+          {mode === 'login' ? (
             <form onSubmit={handleCredentialsSubmit} className="space-y-5">
               <div>
                 <label className="block text-sm mb-2 text-[#0F172A]">

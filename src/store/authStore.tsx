@@ -107,21 +107,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const deviceId = getOrCreateDeviceId();
         const data = await authApi.login(identifier, password, deviceId);
-        if ('accessToken' in data && data.accessToken) {
-          setTokens(data.accessToken, data.refreshToken);
-          setAccessTokenState(data.accessToken);
-          setRefreshTokenState(data.refreshToken);
-          try {
-            const profile = await userApi.getProfile();
-            setUser(profile);
-          } catch {
-            setUser(null);
-          }
-          setSessionTokenState(null);
-          navigate('/', { replace: true });
-        } else {
-          setSessionTokenState(data.sessionToken);
+        if (!('accessToken' in data) || !data.accessToken || !data.refreshToken) {
+          throw new Error('Login requires additional verification which is not supported.');
         }
+        setTokens(data.accessToken, data.refreshToken);
+        setAccessTokenState(data.accessToken);
+        setRefreshTokenState(data.refreshToken);
+        try {
+          const profile = await userApi.getProfile();
+          setUser(profile);
+        } catch {
+          setUser(null);
+        }
+        setSessionTokenState(null);
+        navigate('/', { replace: true });
       } finally {
         setLoading(false);
       }
@@ -165,7 +164,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(true);
       try {
         await authApi.register(data);
-        navigate('/login', { replace: true, state: { registerSuccess: true } });
+        // Send email verification OTP for registration flow.
+        await authApi.sendRegisterEmailVerification(data.email);
+        navigate('/verify-email', {
+          replace: true,
+          state: { email: data.email, password: data.password },
+        });
       } finally {
         setLoading(false);
       }

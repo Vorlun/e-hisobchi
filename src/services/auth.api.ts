@@ -202,6 +202,28 @@ export async function register(data: RegisterRequest): Promise<void> {
   }
 }
 
+/** Send registration email verification OTP. */
+export async function sendRegisterEmailVerification(email: string): Promise<void> {
+  const res = await api<{ success?: boolean; message?: string }>('/auth/verify/email/send', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+  if (res && typeof res === 'object' && res.success === false) {
+    throw new Error(res.message || 'Failed to send verification code');
+  }
+}
+
+/** Verify registration email OTP. */
+export async function verifyRegisterEmail(email: string, code: string): Promise<void> {
+  const res = await api<{ success?: boolean; message?: string }>('/auth/verify/email', {
+    method: 'POST',
+    body: JSON.stringify({ email, code }),
+  });
+  if (res && typeof res === 'object' && res.success === false) {
+    throw new Error(res.message || 'Invalid verification code');
+  }
+}
+
 export async function getGoogleUrl(): Promise<string> {
   const res = await api<GoogleUrlApiResponse | GoogleUrlResponse | string>('/auth/google/url');
   if (typeof res === 'string') {

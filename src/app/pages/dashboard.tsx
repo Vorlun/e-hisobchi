@@ -26,6 +26,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { useFinance } from '../../store/FinanceStore';
+import { useAuth } from '../../store/authStore';
 import { formatUzs, formatUzsSigned } from '../../utils/currency';
 import type { TimeFilter } from '../../store/FinanceStore';
 import { generateSmartAlerts } from '../../services/smartAlerts';
@@ -56,6 +57,7 @@ export default function Dashboard() {
     getIncomeVsExpense,
     loadingAccounts,
   } = useFinance();
+  const { user } = useAuth();
 
   const recentTransactions = useMemo(() => transactions.slice(0, 5), [transactions]);
 
@@ -180,6 +182,12 @@ export default function Dashboard() {
           Add Transaction
         </Button>
       </div>
+
+      {user?.emailVerified === false && (
+        <div className="rounded-xl border border-dashed border-[#FBBF24] bg-[#FFFBEB] px-4 py-3 text-sm text-[#92400E]">
+          Please verify your email to unlock all features.
+        </div>
+      )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
