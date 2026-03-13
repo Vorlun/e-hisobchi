@@ -51,7 +51,13 @@ export async function api<T>(
     'Content-Type': 'application/json',
     ...(options?.headers as Record<string, string>),
   };
-  if (accessToken) {
+  const isPublicAuthEndpoint =
+    path.startsWith('/auth/register') ||
+    path.startsWith('/auth/login') ||
+    path.startsWith('/auth/verify/email') ||
+    path.startsWith('/auth/verify/email/send');
+
+  if (accessToken && !isPublicAuthEndpoint) {
     headers['Authorization'] = `Bearer ${accessToken}`;
   }
   let res: Response;

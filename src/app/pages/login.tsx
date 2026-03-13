@@ -133,14 +133,7 @@ export default function Login() {
         phoneNumber: trimmedPhone,
         defaultCurrency: currency || 'UZS',
       });
-      try {
-        await login(trimmedEmail, password);
-      } catch (loginErr) {
-        // Fallback: if auto-login fails (e.g. OTP required), switch to login mode with a message.
-        setMode('login');
-        setSuccessMessage('Account created successfully. Please sign in.');
-        setError(loginErr instanceof Error ? loginErr.message : null);
-      }
+      // register() will navigate to /verify-email and start OTP verification flow.
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed');
     }

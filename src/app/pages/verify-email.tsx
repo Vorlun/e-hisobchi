@@ -49,7 +49,7 @@ export default function VerifyEmail() {
       if (email && password) {
         await login(email, password);
       } else {
-        navigate('/login', { replace: true, state: { emailVerified: true } });
+        navigate('/', { replace: true });
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Verification failed');

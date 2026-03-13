@@ -108,7 +108,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const deviceId = getOrCreateDeviceId();
         const data = await authApi.login(identifier, password, deviceId);
         if (!('accessToken' in data) || !data.accessToken || !data.refreshToken) {
-          throw new Error('Login requires additional verification which is not supported.');
+          // If backend indicates email not verified without tokens, send verification flow.
+          await authApi.sendRegisterEmailVerification(identifier);
+          navigate('/verify-email', { replace: true, state: { email: identifier } });
+          return;
         }
         setTokens(data.accessToken, data.refreshToken);
         setAccessTokenState(data.accessToken);
@@ -116,6 +119,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
           const profile = await userApi.getProfile();
           setUser(profile);
+          if (profile.emailVerified === false && profile.email) {
+            await authApi.sendRegisterEmailVerification(profile.email);
+            navigate('/verify-email', { replace: true, state: { email: profile.email } });
+            return;
+          }
         } catch {
           setUser(null);
         }
