@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router';
 import { Logo } from '../components/logo';
 import { Button } from '../components/button';
@@ -15,6 +15,38 @@ function GoogleIcon() {
       <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
     </svg>
   );
+}
+
+const UZ_PHONE_REGEX = /^\+998\d{9}$/;
+
+function normalizeUzPhone(input: string): string {
+  const digits = input.replace(/\D/g, '');
+  let rest = digits;
+  if (rest.startsWith('998')) {
+    rest = rest.slice(3);
+  } else if (rest.startsWith('8')) {
+    rest = rest.slice(1);
+  }
+  rest = rest.slice(0, 9);
+  if (!rest) return '';
+  return `+998${rest}`;
+}
+
+function formatUzPhoneInput(input: string): string {
+  const normalized = normalizeUzPhone(input);
+  if (!normalized) return '';
+  const core = normalized.slice(4); // remove +998
+  const part1 = core.slice(0, 2);
+  const part2 = core.slice(2, 5);
+  const part3 = core.slice(5, 7);
+  const part4 = core.slice(7, 9);
+  const parts = [
+    part1,
+    part2,
+    part3,
+    part4,
+  ].filter(Boolean);
+  return `+998${parts.length ? ` ${parts.join(' ')}` : ''}`;
 }
 
 export default function Login() {
@@ -44,6 +76,19 @@ export default function Login() {
     return <Navigate to="/" replace />;
   }
 
+  const normalizedPhone = useMemo(() => normalizeUzPhone(phoneNumber), [phoneNumber]);
+
+  const isRegisterFormValid = useMemo(() => {
+    const trimmedFullName = fullName.trim();
+    const trimmedEmail = email.trim();
+    if (!trimmedFullName) return false;
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailPattern.test(trimmedEmail)) return false;
+    if (password.length < 8) return false;
+    if (!UZ_PHONE_REGEX.test(normalizedPhone)) return false;
+    return true;
+  }, [fullName, email, password, normalizedPhone]);
+
   const handleCredentialsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -59,7 +104,7 @@ export default function Login() {
     setError(null);
     const trimmedFullName = fullName.trim();
     const trimmedEmail = email.trim();
-    const trimmedPhone = phoneNumber.trim().replace(/\s+/g, '');
+    const trimmedPhone = normalizedPhone;
     const currency = defaultCurrency && defaultCurrency !== 'string' ? defaultCurrency : 'UZS';
 
     // Basic frontend validation to avoid obvious 400s
@@ -76,8 +121,8 @@ export default function Login() {
       setError('Password must be at least 8 characters long');
       return;
     }
-    if (!trimmedPhone.startsWith('+998') || trimmedPhone.length !== 13) {
-      setError('Phone number must be in format +998XXXXXXXXX');
+    if (!UZ_PHONE_REGEX.test(trimmedPhone)) {
+      setError('Please enter a valid Uzbekistan phone number');
       return;
     }
 
@@ -89,6 +134,14 @@ export default function Login() {
         phoneNumber: trimmedPhone,
         defaultCurrency: currency || 'UZS',
       });
+      try {
+        await login(trimmedEmail, password);
+      } catch (loginErr) {
+        // Fallback: if auto-login fails (e.g. OTP required), switch to login mode with a message.
+        setMode('login');
+        setSuccessMessage('Account created successfully. Please sign in.');
+        setError(loginErr instanceof Error ? loginErr.message : null);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed');
     }
@@ -149,7 +202,7 @@ export default function Login() {
                   />
                 </div>
               </div>
-              <Button type="submit" className="w-full" size="lg" disabled={loading}>
+              <Button type="submit" className="w-full" size="lg" disabled={loading || !isRegisterFormValid}>
                 {loading ? <Loader2 className="w-5 h-5 animate-spin" aria-hidden /> : null}
                 {loading ? 'Verifying…' : 'Verify'}
               </Button>
@@ -256,7 +309,10 @@ export default function Login() {
                   <input
                     type="tel"
                     value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    onChange={(e) => {
+                      const formatted = formatUzPhoneInput(e.target.value);
+                      setPhoneNumber(formatted);
+                    }}
                     placeholder="+998 90 123 45 67"
                     className="w-full px-4 py-2.5 rounded-xl border border-[#E2E8F0] bg-white text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#1E40AF] focus:border-transparent transition-all"
                     required
