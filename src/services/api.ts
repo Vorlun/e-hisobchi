@@ -55,7 +55,9 @@ export async function api<T>(
     path.startsWith('/auth/register') ||
     path.startsWith('/auth/login') ||
     path.startsWith('/auth/verify/email') ||
-    path.startsWith('/auth/verify/email/send');
+    path.startsWith('/auth/verify/email/send') ||
+    path.startsWith('/auth/forgot-password') ||
+    path.startsWith('/auth/reset-password');
 
   if (accessToken && !isPublicAuthEndpoint) {
     headers['Authorization'] = `Bearer ${accessToken}`;
