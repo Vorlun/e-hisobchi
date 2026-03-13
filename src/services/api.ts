@@ -82,6 +82,7 @@ export async function api<T>(
       if (body) detail = body.slice(0, 200);
     }
     if (res.status === 403) throw new Error(detail || 'You do not have permission to perform this action.');
+    if (res.status === 409) throw new Error(detail || 'This account already exists.');
     if (res.status >= 500) throw new Error(detail || 'Unexpected server error');
     throw new Error(detail || `Request failed (${res.status})`);
   }
