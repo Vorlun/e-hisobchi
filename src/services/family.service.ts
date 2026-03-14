@@ -36,6 +36,7 @@ interface GetMyFamilyData {
 
 interface InviteLinkData {
   inviteToken: string;
+  inviteTokenExpiresAt?: string;
 }
 
 interface PaginatedFamilyTransactions {
@@ -101,9 +102,9 @@ export async function generateInviteLink(): Promise<string> {
     `${FAMILY_BASE}/invite-link`,
     { method: 'PATCH' }
   );
-  const data = unwrap(res as WrappedResponse<InviteLinkData>);
-  const token = data && typeof data === 'object' && 'inviteToken' in data ? (data as InviteLinkData).inviteToken : (res as InviteLinkData).inviteToken;
-  if (!token) throw new Error('Invalid invite link response');
+  const data = (res && typeof res === 'object' && 'data' in res ? (res as WrappedResponse<InviteLinkData>).data : res) as InviteLinkData | undefined;
+  const token = data?.inviteToken ?? (res as InviteLinkData)?.inviteToken;
+  if (!token || typeof token !== 'string') throw new Error('Invalid invite link response');
   return token;
 }
 

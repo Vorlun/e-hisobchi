@@ -5,7 +5,9 @@ import Login from './pages/login';
 import Layout from './pages/layout';
 import Dashboard from './pages/dashboard';
 import Accounts from './pages/accounts';
+import Cards from './pages/cards';
 import Transactions from './pages/transactions';
+import Categories from './pages/categories';
 import Transfer from './pages/transfer';
 import Debts from './pages/debts';
 import Budget from './pages/budget';
@@ -14,6 +16,9 @@ import Family from './pages/family';
 import FamilyJoin from './pages/family-join';
 import Smart from './pages/smart';
 import Settings from './pages/settings';
+import Currency from './pages/currency';
+import Devices from './pages/devices';
+import Profile from './pages/profile';
 import GoogleCallback from './pages/google-callback';
 import VerifyLogin from './pages/verify-login';
 import VerifyEmail from './pages/verify-email';
@@ -56,8 +61,16 @@ export const router = createBrowserRouter([
             Component: Accounts,
           },
           {
+            path: 'cards',
+            Component: Cards,
+          },
+          {
             path: 'transactions',
             Component: Transactions,
+          },
+          {
+            path: 'categories',
+            Component: Categories,
           },
           {
             path: 'transfer',
@@ -74,6 +87,22 @@ export const router = createBrowserRouter([
           {
             path: 'analytics',
             Component: Analytics,
+          },
+          {
+            path: 'statistics',
+            Component: Analytics,
+          },
+          {
+            path: 'currency',
+            Component: Currency,
+          },
+          {
+            path: 'devices',
+            Component: Devices,
+          },
+          {
+            path: 'profile',
+            Component: Profile,
           },
           {
             path: 'family',

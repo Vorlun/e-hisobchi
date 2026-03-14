@@ -20,13 +20,12 @@ export async function fetchDevices(): Promise<DevicesResponse> {
     '/devices',
     { headers: deviceHeaders() }
   );
-  const data = res && typeof res === 'object' && 'devices' in res
-    ? (res as DevicesResponse)
-    : (res as { data?: DevicesResponse }).data;
-  if (!data) return { devices: [], total: 0 };
+  const wrapped = res as { devices?: Device[]; total?: number; data?: { devices?: Device[]; total?: number } } | null;
+  const data = wrapped?.data ?? (wrapped && 'devices' in wrapped ? wrapped : null);
+  if (!data || !Array.isArray(data.devices)) return { devices: [], total: 0 };
   return {
-    devices: Array.isArray(data.devices) ? data.devices : [],
-    total: typeof data.total === 'number' ? data.total : 0,
+    devices: data.devices,
+    total: typeof data.total === 'number' ? data.total : data.devices.length,
   };
 }
 

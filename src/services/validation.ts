@@ -86,7 +86,7 @@ export function validateTransaction(
   return { valid: true };
 }
 
-/** Full transfer validation. */
+/** Full transfer validation (internal: both account ids). */
 export function validateTransfer(
   fromAccountId: string,
   toAccountId: string,
@@ -101,5 +101,28 @@ export function validateTransfer(
   if (!fromExists.valid) return fromExists;
   const toExists = validateAccountExists(accounts, toAccountId);
   if (!toExists.valid) return toExists;
+  return { valid: true };
+}
+
+/** Transfer with either toAccountId (internal) or toCardNumber (external). */
+export function validateTransferRequest(params: {
+  fromAccountId: string;
+  toAccountId?: string;
+  toCardNumber?: string;
+  amount: number;
+  accounts: Account[];
+}): Validation {
+  const { fromAccountId, toAccountId, toCardNumber, amount, accounts } = params;
+  const amountCheck = validateTransferAmount(amount);
+  if (!amountCheck.valid) return amountCheck;
+  if (!fromAccountId) return validationError('Source is required');
+  const hasTo = toAccountId != null && toAccountId !== '' || (toCardNumber != null && toCardNumber.replace(/\D/g, '').length === 16);
+  if (!hasTo) return validationError('Destination is required (select account/card or enter card number)');
+  if (toCardNumber != null && toCardNumber.replace(/\D/g, '').length !== 16) {
+    return validationError('Card number must be 16 digits');
+  }
+  if (toAccountId != null && toAccountId !== '') {
+    if (fromAccountId === toAccountId) return validationError('Source and destination must be different');
+  }
   return { valid: true };
 }

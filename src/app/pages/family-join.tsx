@@ -38,6 +38,16 @@ export default function FamilyJoin() {
       navigate('/family', { replace: true });
     }
   }, [status, navigate]);
+  const joinErrorMessage =
+    error == null
+      ? ''
+      : error.includes('already been used')
+        ? "This invite link has already been used."
+        : error.includes('expired')
+          ? "This invite link has expired."
+          : error.includes('Invalid') || error.includes('invalid')
+            ? "Invalid invite token."
+            : error;
 
   if (!token) {
     return (
@@ -66,7 +76,7 @@ export default function FamilyJoin() {
   if (status === 'error') {
     return (
       <div className="p-8 text-center">
-        <p className="text-[#DC2626]">{error || 'Failed to join family.'}</p>
+        <p className="text-[#DC2626]">{joinErrorMessage || 'Failed to join family.'}</p>
         <button
           type="button"
           onClick={() => { clearError(); navigate('/family', { replace: true }); }}

@@ -67,6 +67,13 @@ export default function Family() {
     try {
       const url = await generateInviteLink();
       setInviteLink(url);
+      try {
+        await navigator.clipboard.writeText(url);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch {
+        // clipboard may fail in some contexts
+      }
     } catch {
       setInviteLink(null);
     } finally {
@@ -371,7 +378,8 @@ export default function Family() {
             <p className="text-[#64748B]">No members yet. Invite someone using the invite link.</p>
           ) : (
             members.map((member) => {
-              const roleDisplay = isOwner(member, ownerId) ? 'admin' : 'member';
+              const isOwnerRole = isOwner(member, ownerId);
+              const roleDisplay = isOwnerRole ? 'OWNER' : (member.role ?? 'member');
               const memberId = (member as { userId?: string }).userId ?? member.id;
               const canRemove = currentUserIsOwner && !isOwner(member, ownerId);
               return (
@@ -390,7 +398,7 @@ export default function Family() {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-[#64748B]">Role</span>
-                      <Badge variant={roleDisplay === 'admin' ? 'info' : 'default'}>{roleDisplay}</Badge>
+                      <Badge variant={roleDisplay === 'OWNER' ? 'info' : 'default'}>{roleDisplay}</Badge>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-[#64748B]">Status</span>

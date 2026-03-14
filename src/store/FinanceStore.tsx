@@ -14,7 +14,7 @@ import {
   selectExpenseByCategory,
   selectIncomeVsExpenseTimeline,
 } from '../services/selectors';
-import { validateTransaction, validateTransfer } from '../services/validation';
+import { validateTransaction, validateTransfer, validateTransferRequest } from '../services/validation';
 import { getTodayString } from '../utils/dates';
 import type { TimeFilter } from '../utils/dates';
 import { isApiAvailable } from '../services/api';
@@ -90,6 +90,7 @@ interface FinanceState {
   calendarStats: CalendarStatsItem[];
   topCategories: TopCategoryItem[];
   loadingAccounts: boolean;
+  loadingCards: boolean;
   loadingTransactions: boolean;
   loadingTransfers: boolean;
   loadingBudgets: boolean;
@@ -134,7 +135,14 @@ interface FinanceContextValue extends FinanceState {
   addTransaction: (data: Omit<Transaction, 'id' | 'createdAt'>) => void | Promise<void>;
   updateTransaction: (id: string, data: Partial<Transaction>) => void | Promise<void>;
   deleteTransaction: (id: string) => void | Promise<void>;
-  addTransfer: (fromAccountId: string, toAccountId: string, amount: number, title?: string, purpose?: string) => void | Promise<void>;
+  addTransfer: (params: {
+    fromAccountId: string;
+    toAccountId?: string;
+    toCardNumber?: string;
+    amount: number;
+    description?: string;
+    purpose?: string;
+  }) => void | Promise<void>;
   addBudget: (category: string, limit: number) => void;
   updateBudget: (id: string, data: Partial<Budget>) => void;
   deleteBudget: (id: string) => Promise<void>;
@@ -509,21 +517,38 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   );
 
   const addTransfer = useCallback(
-    async (fromAccountId: string, toAccountId: string, amount: number, title = 'Transfer', purpose?: string) => {
+    async (params: {
+      fromAccountId: string;
+      toAccountId?: string;
+      toCardNumber?: string;
+      amount: number;
+      description?: string;
+      purpose?: string;
+    }) => {
       if (!isApiAvailable) return;
-      const validation = validateTransfer(fromAccountId, toAccountId, amount, accounts);
+      const { fromAccountId, toAccountId, toCardNumber, amount, description, purpose } = params;
+      const rawAmount = Math.abs(amount);
+      const validation = validateTransferRequest({
+        fromAccountId,
+        toAccountId,
+        toCardNumber: toCardNumber != null && toCardNumber !== '' ? toCardNumber.replace(/\D/g, '') : undefined,
+        amount: rawAmount,
+        accounts,
+      });
       if (!validation.valid) throw new Error(validation.error);
       await createTransferInStore({
         fromAccountId,
-        toAccountId,
-        amount: Math.abs(amount),
-        description: title,
+        toAccountId: toAccountId || undefined,
+        toCardNumber: toCardNumber != null && toCardNumber !== '' ? toCardNumber.replace(/\D/g, '') : undefined,
+        amount: rawAmount,
+        description: description || 'Transfer',
         purpose: purpose || undefined,
       });
       await fetchTransfersFromStore();
       await fetchAccountsFromStore();
+      await fetchCardsFromStore();
     },
-    [accounts, createTransferInStore, fetchTransfersFromStore, fetchAccountsFromStore]
+    [accounts, createTransferInStore, fetchTransfersFromStore, fetchAccountsFromStore, fetchCardsFromStore]
   );
 
   const addBudget = useCallback(
@@ -683,6 +708,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       calendarStats: calendarStatsFromStore,
       topCategories: topCategoriesFromStore,
       loadingAccounts,
+      loadingCards,
       loadingTransactions,
       loadingTransfers,
       loadingBudgets,
@@ -756,6 +782,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       calendarStatsFromStore,
       topCategoriesFromStore,
       loadingAccounts,
+      loadingCards,
       loadingTransactions,
       loadingTransfers,
       loadingBudgets,

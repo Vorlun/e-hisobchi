@@ -2,7 +2,7 @@ import React, { useId } from 'react';
 
 interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;
-  options: { value: string; label: string }[];
+  options: { value: string; label: string; disabled?: boolean }[];
 }
 
 export function Select({ label, options, className = '', id: idProp, ...props }: SelectProps) {
@@ -21,7 +21,7 @@ export function Select({ label, options, className = '', id: idProp, ...props }:
         {...props}
       >
         {options.map(option => (
-          <option key={option.value} value={option.value}>
+          <option key={option.value} value={option.value} disabled={option.disabled}>
             {option.label}
           </option>
         ))}

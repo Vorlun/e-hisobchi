@@ -47,6 +47,7 @@ export async function api<T>(
 ): Promise<T> {
   const url = `${API_BASE}${path}`;
   const token = getAccessToken();
+  const refreshToken = getRefreshToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options?.headers as Record<string, string>),
@@ -64,6 +65,9 @@ export async function api<T>(
 
   if (token && !isPublicAuthEndpoint) {
     headers['Authorization'] = `Bearer ${token}`;
+  }
+  if (refreshToken && !isPublicAuthEndpoint) {
+    headers['X-Refresh-Token'] = refreshToken;
   }
   let res: Response;
   try {
@@ -96,7 +100,7 @@ export async function api<T>(
     }
     let message = detail || `Request failed (${res.status})`;
     if (res.status === 400) {
-      message = detail || 'Validation error';
+      message = detail || (path.includes('/family/join') ? 'Invalid invite token.' : 'Validation error');
       toast.error(message);
       throw new Error(message);
     }
@@ -116,7 +120,12 @@ export async function api<T>(
       throw new Error(message);
     }
     if (res.status === 409) {
-      message = detail || 'User already exists';
+      message = detail || (path.includes('/family/join') ? 'This invite link has already been used.' : 'User already exists');
+      toast.error(message);
+      throw new Error(message);
+    }
+    if (res.status === 410) {
+      message = detail || 'This invite link has expired.';
       toast.error(message);
       throw new Error(message);
     }

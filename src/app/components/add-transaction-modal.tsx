@@ -233,7 +233,12 @@ export function AddTransactionModal({ isOpen, onClose }: AddTransactionModalProp
           formData.description || undefined
         );
       } else if (formData.type === 'transfer' && formData.toAccount) {
-        await addTransfer(formData.account, formData.toAccount, amountNum, formData.description || 'Transfer');
+        await addTransfer({
+          fromAccountId: formData.account,
+          toAccountId: formData.toAccount,
+          amount: amountNum,
+          description: formData.description || 'Transfer',
+        });
       } else {
         const txType = formData.type === 'income' ? 'INCOME' : formData.type === 'expense' ? 'EXPENSE' : 'TRANSFER';
         await addTransaction({
