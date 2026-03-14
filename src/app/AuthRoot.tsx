@@ -1,14 +1,17 @@
 import { Navigate, Outlet, useLocation } from 'react-router';
 import { AuthProvider, useAuth } from '../store/authStore';
+import { FamilyProvider } from '../store/familyStore';
 import { getAccessToken } from '../services/tokenStorage';
 
 /**
- * Wraps all routes with AuthProvider so auth state and useNavigate are available.
+ * Wraps all routes with AuthProvider and FamilyProvider so auth and family state are available.
  */
 export function AuthRoot() {
   return (
     <AuthProvider>
-      <Outlet />
+      <FamilyProvider>
+        <Outlet />
+      </FamilyProvider>
     </AuthProvider>
   );
 }

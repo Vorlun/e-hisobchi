@@ -11,6 +11,7 @@ import Debts from './pages/debts';
 import Budget from './pages/budget';
 import Analytics from './pages/analytics';
 import Family from './pages/family';
+import FamilyJoin from './pages/family-join';
 import Smart from './pages/smart';
 import Settings from './pages/settings';
 import GoogleCallback from './pages/google-callback';
@@ -77,6 +78,10 @@ export const router = createBrowserRouter([
           {
             path: 'family',
             Component: Family,
+          },
+          {
+            path: 'family/join',
+            Component: FamilyJoin,
           },
           {
             path: 'smart',
