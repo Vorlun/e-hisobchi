@@ -57,6 +57,8 @@ export async function api<T>(
     path.startsWith('/auth/register') ||
     path.startsWith('/auth/verify/email') ||
     path.startsWith('/auth/verify/email/send') ||
+    path.startsWith('/auth/verify/phone') ||
+    path.startsWith('/auth/verify/phone/send') ||
     path.startsWith('/auth/forgot-password') ||
     path.startsWith('/auth/reset-password');
 

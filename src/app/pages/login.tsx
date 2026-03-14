@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router';
 import { Lock, Mail, Eye, EyeOff, Loader2 } from 'lucide-react';
-import { AuthLogo } from '../components/logo';
 import { useAuth } from '../../store/authStore';
 import { getAccessToken } from '../../services/tokenStorage';
 
@@ -145,12 +144,16 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50 px-4">
       <div className="w-full max-w-md flex flex-col items-center justify-center">
         <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-10 space-y-6">
-          <div className="text-center">
-            <AuthLogo />
-            <h1 className="text-2xl font-semibold text-gray-900 text-center">
+          <div className="text-center space-y-2">
+            <img
+              src="/logo_full.png"
+              alt="e-hisobchi"
+              className="h-[120px] sm:h-[130px] md:h-[140px] mx-auto object-contain"
+            />
+            <h1 className="text-2xl font-semibold text-gray-900">
               {mode === 'login' ? 'Welcome back' : 'Create account'}
             </h1>
-            <p className="text-sm text-gray-500 text-center">
+            <p className="text-sm text-gray-500">
               Track your finances with e-hisobchi
             </p>
           </div>

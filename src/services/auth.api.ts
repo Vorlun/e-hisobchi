@@ -141,15 +141,24 @@ export async function verifyLoginOtp(
   return data;
 }
 
+interface WrappedRefreshResponse {
+  success?: boolean;
+  data?: RefreshResponse;
+}
+
 export async function refreshToken(refreshTokenValue: string): Promise<RefreshResponse> {
-  const res = await api<RefreshResponse>('/auth/refresh', {
+  const res = await api<WrappedRefreshResponse | RefreshResponse>('/auth/refresh', {
     method: 'POST',
     body: JSON.stringify({ refreshToken: refreshTokenValue }),
   });
-  if (!res?.accessToken || !res?.refreshToken) {
+  const data =
+    res && typeof res === 'object' && 'data' in res && (res as WrappedRefreshResponse).data
+      ? (res as WrappedRefreshResponse).data
+      : (res as RefreshResponse);
+  if (!data?.accessToken || !data?.refreshToken) {
     throw new Error('Invalid refresh response');
   }
-  return res;
+  return data;
 }
 
 export async function logout(refreshTokenValue: string): Promise<void> {
@@ -195,6 +204,50 @@ export async function verifyEmail(code: string): Promise<void> {
   const res = await api<{ success?: boolean; message?: string }>('/auth/verify/email', {
     method: 'POST',
     body: JSON.stringify({ code }),
+  });
+  if (res && typeof res === 'object' && (res as { success?: boolean }).success === false) {
+    throw new Error((res as { message?: string }).message || 'Invalid verification code');
+  }
+}
+
+/** Request password reset email. */
+export async function forgotPassword(email: string): Promise<void> {
+  const res = await api<{ success?: boolean; message?: string }>('/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email: email.trim() }),
+  });
+  if (res && typeof res === 'object' && (res as { success?: boolean }).success === false) {
+    throw new Error((res as { message?: string }).message || 'Failed to send reset email');
+  }
+}
+
+/** Reset password with token from email. */
+export async function resetPassword(token: string, newPassword: string): Promise<void> {
+  const res = await api<{ success?: boolean; message?: string }>('/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({ token, newPassword }),
+  });
+  if (res && typeof res === 'object' && (res as { success?: boolean }).success === false) {
+    throw new Error((res as { message?: string }).message || 'Password reset failed');
+  }
+}
+
+/** Send phone verification OTP (e.g. after change phone). */
+export async function sendPhoneVerification(phoneNumber: string): Promise<void> {
+  const res = await api<{ success?: boolean; message?: string }>('/auth/verify/phone/send', {
+    method: 'POST',
+    body: JSON.stringify({ phoneNumber: phoneNumber.trim() }),
+  });
+  if (res && typeof res === 'object' && (res as { success?: boolean }).success === false) {
+    throw new Error((res as { message?: string }).message || 'Failed to send verification code');
+  }
+}
+
+/** Verify phone OTP. */
+export async function verifyPhoneCode(code: string): Promise<void> {
+  const res = await api<{ success?: boolean; message?: string }>('/auth/verify/phone', {
+    method: 'POST',
+    body: JSON.stringify({ code: code.trim() }),
   });
   if (res && typeof res === 'object' && (res as { success?: boolean }).success === false) {
     throw new Error((res as { message?: string }).message || 'Invalid verification code');

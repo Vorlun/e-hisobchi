@@ -58,13 +58,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const loadUser = useCallback(async () => {
-    if (!getAccessToken()) {
+    const token = getAccessToken();
+    if (!token) {
       setUser(null);
       setAccessTokenState(null);
       setRefreshTokenState(null);
       setLoading(false);
       return;
     }
+    setAccessTokenState(token);
+    setRefreshTokenState(getRefreshToken());
     try {
       const profile = await userApi.getProfile();
       setUser(profile);
@@ -175,18 +178,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async () => {
     setLoading(true);
+    const refresh = getRefreshToken();
     try {
-      const refresh = getRefreshToken();
       if (refresh) await authApi.logout(refresh);
-      else clearTokens();
+    } catch {
+      // Proceed to clear local state even if API fails
+    } finally {
+      clearTokens();
+      clearSessionToken();
       setUser(null);
       setSessionTokenState(null);
       setAccessTokenState(null);
       setRefreshTokenState(null);
-      clearSessionToken();
-      navigate('/login', { replace: true });
-    } finally {
       setLoading(false);
+      navigate('/login', { replace: true });
     }
   }, [navigate]);
 
