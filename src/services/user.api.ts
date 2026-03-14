@@ -15,7 +15,7 @@ export interface UserProfile {
 
 interface WrappedProfileResponse {
   success?: boolean;
-  data?: { fullName?: string; email?: string; phoneNumber?: string; id?: string | number; defaultCurrency?: string };
+  data?: { fullName?: string; email?: string; phoneNumber?: string; id?: string | number; defaultCurrency?: string; emailVerified?: boolean };
 }
 
 export interface UpdateProfileRequest {
@@ -66,7 +66,7 @@ export async function getProfile(): Promise<UserProfile> {
     email,
     phoneNumber,
     defaultCurrency,
-    emailVerified: (raw as UserProfile).emailVerified,
+    emailVerified: raw.emailVerified ?? (raw as UserProfile).emailVerified,
   };
 }
 

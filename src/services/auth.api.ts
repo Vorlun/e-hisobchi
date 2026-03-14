@@ -10,14 +10,11 @@ export interface LoginRequest {
   password: string;
 }
 
-/** Login response: either tokens (verified) or sessionToken (OTP required). */
+/** Login response: sessionToken and emailVerified. User must complete OTP at /verify-login. */
 export interface LoginResponse {
-  sessionToken?: string;
-  maskedEmail?: string;
+  sessionToken: string;
   emailVerified?: boolean;
-  phoneVerified?: boolean;
-  accessToken?: string;
-  refreshToken?: string;
+  maskedEmail?: string;
 }
 
 /** Backend wraps login response in { success, message?, data }. */
@@ -118,11 +115,8 @@ export async function login(identifier: string, password: string): Promise<Login
     res && typeof res === 'object' && 'data' in res && (res as WrappedLoginResponse).data
       ? (res as WrappedLoginResponse).data
       : (res as LoginResponse);
-  if (!data) throw new Error('Invalid login response');
-  if (!data.accessToken && !data.refreshToken && !data.sessionToken) {
-    throw new Error('Invalid login response');
-  }
-  return data;
+  if (!data?.sessionToken) throw new Error('Invalid login response');
+  return { sessionToken: data.sessionToken, emailVerified: data.emailVerified, maskedEmail: data.maskedEmail };
 }
 
 export async function verifyLoginOtp(
@@ -196,24 +190,14 @@ export async function sendRegisterEmailVerification(email: string): Promise<void
   }
 }
 
-export interface VerifyEmailResponse {
-  accessToken?: string;
-  refreshToken?: string;
-  user?: AuthUser;
-}
-
-/** Verify registration email OTP. Returns tokens if backend auto-logins after verification. */
-export async function verifyRegisterEmail(email: string, code: string): Promise<VerifyEmailResponse | void> {
-  const res = await api<{ success?: boolean; message?: string; data?: VerifyEmailResponse }>('/auth/verify/email', {
+/** Verify registration email OTP. Body: { code }. On success redirect to /login. */
+export async function verifyEmail(code: string): Promise<void> {
+  const res = await api<{ success?: boolean; message?: string }>('/auth/verify/email', {
     method: 'POST',
-    body: JSON.stringify({ email, code }),
+    body: JSON.stringify({ code }),
   });
-  if (res && typeof res === 'object' && res.success === false) {
+  if (res && typeof res === 'object' && (res as { success?: boolean }).success === false) {
     throw new Error((res as { message?: string }).message || 'Invalid verification code');
-  }
-  const data = res && typeof res === 'object' && 'data' in res ? (res as { data?: VerifyEmailResponse }).data : res as VerifyEmailResponse;
-  if (data?.accessToken && data?.refreshToken) {
-    return { accessToken: data.accessToken, refreshToken: data.refreshToken, user: data.user };
   }
 }
 

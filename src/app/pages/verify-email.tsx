@@ -3,8 +3,7 @@ import { useLocation, useNavigate } from 'react-router';
 import { ShieldCheck, Loader2 } from 'lucide-react';
 import { Logo } from '../components/logo';
 import { Button } from '../components/button';
-import { useAuth } from '../../store/authStore';
-import { verifyRegisterEmail, sendRegisterEmailVerification } from '../../services/auth.api';
+import { verifyEmail, sendRegisterEmailVerification } from '../../services/auth.api';
 
 interface VerifyEmailLocationState {
   email?: string;
@@ -13,7 +12,6 @@ interface VerifyEmailLocationState {
 export default function VerifyEmail() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { completeRegistrationLogin } = useAuth();
   const state = (location.state as VerifyEmailLocationState) || {};
   const [email] = useState<string | undefined>(state.email);
   const [code, setCode] = useState('');
@@ -38,18 +36,13 @@ export default function VerifyEmail() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) return;
     setError(null);
     setInfo(null);
     setLoading(true);
     try {
-      const tokens = await verifyRegisterEmail(email, code.trim());
-      if (tokens?.accessToken && tokens?.refreshToken) {
-        await completeRegistrationLogin(tokens.accessToken, tokens.refreshToken);
-      } else {
-        setInfo('Email verified successfully. Please login.');
-        navigate('/login', { replace: true, state: { emailVerified: true } });
-      }
+      await verifyEmail(code.trim());
+      setInfo('Email verified successfully.');
+      navigate('/login', { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Verification failed');
     } finally {

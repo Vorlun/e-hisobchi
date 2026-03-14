@@ -99,27 +99,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(true);
       try {
         const data = await authApi.login(identifier, password);
-        if (data.accessToken && data.refreshToken) {
-          setTokens(data.accessToken, data.refreshToken);
-          setAccessTokenState(data.accessToken);
-          setRefreshTokenState(data.refreshToken);
-          try {
-            const profile = await userApi.getProfile();
-            setUser(profile);
-          } catch {
-            setUser(null);
-          }
-          navigate('/dashboard', { replace: true });
-        } else if (data.sessionToken) {
-          setSessionTokenStorage(data.sessionToken);
-          setSessionTokenState(data.sessionToken);
-          navigate('/verify-login', {
-            replace: true,
-            state: { sessionToken: data.sessionToken, maskedEmail: data.maskedEmail },
-          });
-        } else {
-          throw new Error('Invalid login response');
-        }
+        setSessionTokenStorage(data.sessionToken);
+        setSessionTokenState(data.sessionToken);
+        navigate('/verify-login', {
+          replace: true,
+          state: { sessionToken: data.sessionToken, maskedEmail: data.maskedEmail },
+        });
       } finally {
         setLoading(false);
       }
