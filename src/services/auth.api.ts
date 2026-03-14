@@ -14,6 +14,14 @@ export interface LoginResponse {
   sessionToken: string;
   maskedEmail?: string;
   emailVerified?: boolean;
+  phoneVerified?: boolean;
+}
+
+/** Backend wraps login response in { success, message?, data }. */
+interface WrappedLoginResponse {
+  success?: boolean;
+  message?: string;
+  data?: LoginResponse;
 }
 
 export interface VerifyOtpRequest {
@@ -99,14 +107,18 @@ function getOrCreateDeviceId(): string {
 
 export async function login(identifier: string, password: string): Promise<LoginResponse> {
   const deviceId = getOrCreateDeviceId();
-  const res = await api<LoginResponse>('/auth/login', {
+  const res = await api<WrappedLoginResponse | LoginResponse>('/auth/login', {
     method: 'POST',
     body: JSON.stringify({ identifier, password, deviceId }),
   });
-  if (!res?.sessionToken) {
+  const data =
+    res && typeof res === 'object' && 'data' in res && (res as WrappedLoginResponse).data
+      ? (res as WrappedLoginResponse).data
+      : (res as LoginResponse);
+  if (!data?.sessionToken) {
     throw new Error('Invalid login response');
   }
-  return res;
+  return data;
 }
 
 export async function verifyLoginOtp(
