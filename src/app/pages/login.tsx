@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router';
-import { Button } from '../components/button';
 import { Lock, Mail, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useAuth } from '../../store/authStore';
 import { getAccessToken } from '../../services/tokenStorage';
@@ -138,69 +137,77 @@ export default function Login() {
     }
   };
 
+  const inputClass =
+    'w-full h-12 rounded-xl border border-gray-300 bg-white text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all';
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#F8FAFC] via-[#EFF6FF] to-[#F0FDF4] flex items-center justify-center p-4">
-      <div className="w-full max-w-md mx-auto text-center">
-        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl border border-[#E2E8F0] p-8 space-y-6">
-          <div className="max-w-md mx-auto text-center">
-            <img
-              src="/logo_full.png"
-              alt="e-Hisobchi"
-              className="h-[260px] w-auto mx-auto object-contain"
-            />
-            <p className="text-[#64748B] mt-3 text-center">
-              Smart Financial Management Platform
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50 px-4">
+      <div className="w-full max-w-md flex flex-col items-center justify-center">
+        <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-10 space-y-6">
+          <div className="text-center">
+            <div className="flex justify-center">
+              <img
+                src="/logo_full.png"
+                alt="e-hisobchi"
+                className="w-[70%] max-w-[300px] min-w-[180px] object-contain -mb-5 -mt-4"
+              />
+            </div>
+            <h1 className="text-2xl font-semibold text-gray-900 text-center">
+              {mode === 'login' ? 'Welcome back' : 'Create account'}
+            </h1>
+            <p className="text-sm text-gray-500 text-center">
+              Track your finances with e-hisobchi
             </p>
           </div>
 
           {error && (
-            <p className="text-sm text-[#DC2626]" role="alert">
+            <p className="text-sm text-red-600" role="alert">
               {error}
             </p>
           )}
           {successMessage && (
-            <p className="text-sm text-[#059669]" role="status">
+            <p className="text-sm text-green-600" role="status">
               {successMessage}
             </p>
           )}
 
           {mode === 'login' ? (
-            <form onSubmit={handleCredentialsSubmit} className="space-y-6">
+            <form onSubmit={handleCredentialsSubmit} className="space-y-5">
               <div>
-                <label className="block text-sm mb-2 text-[#0F172A]">
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   Email Address
                 </label>
                 <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#94A3B8]" aria-hidden />
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" aria-hidden />
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="john@example.com"
-                    className="w-full pl-12 pr-4 py-2.5 rounded-xl border border-[#E2E8F0] bg-white text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#1E40AF] focus:border-transparent transition-all"
+                    className={`${inputClass} pl-12 pr-4`}
                     required
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm mb-2 text-[#0F172A]">
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   Password
                 </label>
                 <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#94A3B8]" aria-hidden />
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" aria-hidden />
                   <input
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full pl-12 pr-12 py-2.5 rounded-xl border border-[#E2E8F0] bg-white text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#1E40AF] focus:border-transparent transition-all"
+                    className={`${inputClass} pl-12 pr-12`}
                     required
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-lg text-[#64748B] hover:bg-[#F1F5F9] hover:text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#1E40AF]"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-lg text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-100"
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
@@ -210,106 +217,104 @@ export default function Login() {
 
               <div className="flex items-center justify-between">
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" className="w-4 h-4 rounded border-[#CBD5E1] text-[#1E40AF] focus:ring-[#1E40AF]" />
-                  <span className="text-sm text-[#64748B]">Remember me</span>
+                  <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                  <span className="text-sm text-gray-500">Remember me</span>
                 </label>
-                <button type="button" className="text-sm text-[#1E40AF] hover:underline" aria-label="Forgot password">
+                <button type="button" className="text-sm text-blue-600 hover:underline" aria-label="Forgot password">
                   Forgot password?
                 </button>
               </div>
 
-              <Button type="submit" className="w-full" size="lg" disabled={loading}>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-medium transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
                 {loading ? <Loader2 className="w-5 h-5 animate-spin" aria-hidden /> : null}
                 {loading ? 'Signing in…' : 'Sign In'}
-              </Button>
+              </button>
             </form>
           ) : (
-            <form onSubmit={handleRegisterSubmit} className="space-y-6">
+            <form onSubmit={handleRegisterSubmit} className="space-y-5">
               <div>
-                <label className="block text-sm mb-2 text-[#0F172A]">
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   Full name
                 </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    placeholder="John Doe"
-                    className="w-full px-4 py-2.5 rounded-xl border border-[#E2E8F0] bg-white text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#1E40AF] focus:border-transparent transition-all"
-                    required
-                  />
-                </div>
+                <input
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="John Doe"
+                  className={inputClass}
+                  required
+                />
               </div>
 
               <div>
-                <label className="block text-sm mb-2 text-[#0F172A]">
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   Email Address
                 </label>
                 <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#94A3B8]" aria-hidden />
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" aria-hidden />
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="john@example.com"
-                    className="w-full pl-12 pr-4 py-2.5 rounded-xl border border-[#E2E8F0] bg-white text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#1E40AF] focus:border-transparent transition-all"
+                    className={`${inputClass} pl-12 pr-4`}
                     required
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm mb-2 text-[#0F172A]">
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   Phone number
                 </label>
-                <div className="relative">
-                  <input
-                    type="tel"
-                    value={phoneNumber}
-                    onChange={(e) => {
-                      const formatted = formatUzPhoneInput(e.target.value);
-                      setPhoneNumber(formatted);
-                    }}
-                    placeholder="+998 90 123 45 67"
-                    className="w-full px-4 py-2.5 rounded-xl border border-[#E2E8F0] bg-white text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#1E40AF] focus:border-transparent transition-all"
-                    required
-                  />
-                </div>
+                <input
+                  type="tel"
+                  value={phoneNumber}
+                  onChange={(e) => {
+                    const formatted = formatUzPhoneInput(e.target.value);
+                    setPhoneNumber(formatted);
+                  }}
+                  placeholder="+998 90 123 45 67"
+                  className={inputClass}
+                  required
+                />
               </div>
 
               <div>
-                <label className="block text-sm mb-2 text-[#0F172A]">
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   Default currency
                 </label>
-                <div className="relative">
-                  <select
-                    value={defaultCurrency}
-                    onChange={(e) => setDefaultCurrency(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl border border-[#E2E8F0] bg-white text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#1E40AF] focus:border-transparent transition-all"
-                  >
-                    <option value="UZS">UZS</option>
-                  </select>
-                </div>
+                <select
+                  value={defaultCurrency}
+                  onChange={(e) => setDefaultCurrency(e.target.value)}
+                  className={`${inputClass} pr-10`}
+                >
+                  <option value="UZS">UZS</option>
+                </select>
               </div>
 
               <div>
-                <label className="block text-sm mb-2 text-[#0F172A]">
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   Password
                 </label>
                 <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#94A3B8]" aria-hidden />
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" aria-hidden />
                   <input
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full pl-12 pr-12 py-2.5 rounded-xl border border-[#E2E8F0] bg-white text-[#0F172A] placeholder:text-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#1E40AF] focus:border-transparent transition-all"
+                    className={`${inputClass} pl-12 pr-12`}
                     required
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-lg text-[#64748B] hover:bg-[#F1F5F9] hover:text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#1E40AF]"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-lg text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-100"
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
@@ -317,41 +322,47 @@ export default function Login() {
                 </div>
               </div>
 
-              <Button type="submit" className="w-full" size="lg" disabled={loading}>
+              <button
+                type="submit"
+                disabled={loading || !isRegisterFormValid}
+                className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-medium transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
                 {loading ? <Loader2 className="w-5 h-5 animate-spin" aria-hidden /> : null}
                 {loading ? 'Creating account…' : 'Create account'}
-              </Button>
+              </button>
             </form>
           )}
 
-          <div className="pt-2">
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-px bg-gray-200" />
+            <span className="text-xs text-gray-400">OR</span>
+            <div className="flex-1 h-px bg-gray-200" />
+          </div>
+
+          <button
+            type="button"
+            onClick={googleLogin}
+            disabled={loading}
+            className="w-full h-12 rounded-xl border border-gray-300 flex items-center justify-center gap-2 hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 font-medium"
+          >
+            <GoogleIcon />
+            <span>Sign in with Google</span>
+          </button>
+
+          <p className="text-sm text-center text-gray-500 pt-2">
+            {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
             <button
               type="button"
-              onClick={googleLogin}
-              disabled={loading}
-              className="w-full inline-flex items-center justify-center gap-3 px-6 py-3 rounded-xl border border-[#E2E8F0] bg-white text-[#0F172A] hover:bg-[#F8FAFC] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#1E40AF] focus:border-transparent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="text-blue-600 cursor-pointer ml-1 hover:underline"
+              aria-label={mode === 'login' ? 'Sign up for free' : 'Back to sign in'}
+              onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
             >
-              <GoogleIcon />
-              <span>Continue with Google</span>
+              {mode === 'login' ? 'Sign up' : 'Sign in'}
             </button>
-          </div>
-
-          <div className="pt-2 text-center">
-            <p className="text-sm text-[#64748B]">
-              {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
-              <button
-                type="button"
-                className="text-[#1E40AF] hover:underline"
-                aria-label={mode === 'login' ? 'Sign up for free' : 'Back to sign in'}
-                onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
-              >
-                {mode === 'login' ? 'Sign up for free' : 'Sign in'}
-              </button>
-            </p>
-          </div>
+          </p>
         </div>
 
-        <p className="text-center text-sm text-[#94A3B8] mt-6">
+        <p className="text-center text-sm text-gray-400 mt-6">
           © 2026 e-hisobchi.uz. All rights reserved.
         </p>
       </div>

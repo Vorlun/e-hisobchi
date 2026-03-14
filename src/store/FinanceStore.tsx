@@ -1,6 +1,5 @@
 import React, { createContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Account, AccountType, Transaction, Budget, Debt, DebtDirection, Category } from '../types';
-import { initialAccounts, initialTransactions, initialBudgets, initialDebts } from './initialData';
 import { createTransaction } from '../services/transactions';
 import { createAccount, toAccountType, toDisplayAccountType, generateId } from '../services/accounts';
 import { createBudget as createBudgetRecord, getCurrentMonth } from '../services/budgets';
@@ -231,9 +230,9 @@ interface FinanceContextValue extends FinanceState {
 const FinanceContext = createContext<FinanceContextValue | null>(null);
 
 export function FinanceProvider({ children }: { children: React.ReactNode }) {
-  const [accounts, setAccounts] = useState<Account[]>(initialAccounts);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [cards, setCards] = useState<BankCard[]>([]);
-  const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [transactionPagination, setTransactionPagination] = useState<TransactionPagination>(DEFAULT_PAGINATION);
   const [transactionFilters, setTransactionFiltersState] = useState<TransactionFilters>({});
   const [categories, setCategories] = useState<Category[]>([]);
@@ -243,9 +242,9 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   const [transfers, setTransfers] = useState<Transfer[]>([]);
   const [transferPagination, setTransferPagination] = useState<TransferPagination>(DEFAULT_TRANSFER_PAGINATION);
   const [transferPurposes, setTransferPurposes] = useState<TransferPurpose[]>([]);
-  const [budgets, setBudgets] = useState<Budget[]>(initialBudgets);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
   const [budgetStatus, setBudgetStatus] = useState<budgetsApi.BudgetStatus[]>([]);
-  const [debts, setDebts] = useState<Debt[]>(initialDebts);
+  const [debts, setDebts] = useState<Debt[]>([]);
   const [debtSummary, setDebtSummary] = useState<debtsApi.DebtSummary | null>(null);
   const [summaryStats, setSummaryStats] = useState<statisticsApi.SummaryStats | null>(null);
   const [timelineStats, setTimelineStats] = useState<statisticsApi.TimelineDataPoint[]>([]);
