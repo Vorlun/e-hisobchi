@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card } from '../components/card';
 import { Button } from '../components/button';
 import { Input } from '../components/input';
@@ -6,14 +6,84 @@ import { Select } from '../components/select';
 import { Badge } from '../components/badge';
 import { User, Bell, Lock, CreditCard, Globe } from 'lucide-react';
 import { useAuth } from '../../store/authStore';
+import { useUser } from '../../hooks/useUser';
+import { toast } from 'sonner';
 
 export default function Settings() {
-  const { user } = useAuth();
+  const { user: authUser, loadUser } = useAuth();
+  const {
+    user: profileUser,
+    fetchUser,
+    updateProfile,
+    changePassword,
+    loading: profileLoading,
+  } = useUser();
+  const user = profileUser ?? authUser;
   const [activeTab, setActiveTab] = useState('profile');
+  const [profileForm, setProfileForm] = useState({ fullName: '', phoneNumber: '', defaultCurrency: 'UZS' });
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [savingPassword, setSavingPassword] = useState(false);
+
+  useEffect(() => {
+    if (activeTab === 'profile') fetchUser();
+  }, [activeTab, fetchUser]);
+
+  useEffect(() => {
+    if (user) {
+      setProfileForm({
+        fullName: user.fullName ?? '',
+        phoneNumber: user.phoneNumber ?? '',
+        defaultCurrency: user.defaultCurrency ?? 'UZS',
+      });
+    }
+  }, [user?.id, user?.fullName, user?.phoneNumber, user?.defaultCurrency]);
 
   const fullName = user?.fullName ?? '';
   const [firstName, ...rest] = fullName.split(' ');
   const lastName = rest.join(' ') || '';
+
+  const handleSaveProfile = async () => {
+    setSavingProfile(true);
+    try {
+      await updateProfile({
+        fullName: profileForm.fullName,
+        phoneNumber: profileForm.phoneNumber,
+        defaultCurrency: profileForm.defaultCurrency,
+      });
+      await loadUser();
+      toast.success('Profile updated');
+    } catch {
+      // Error shown by store/toast
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      toast.error('New passwords do not match');
+      return;
+    }
+    setSavingPassword(true);
+    try {
+      await changePassword({
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword,
+        confirmPassword: passwordForm.confirmPassword,
+      });
+      toast.success('Password updated');
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    } catch {
+      // Error shown by store/toast
+    } finally {
+      setSavingPassword(false);
+    }
+  };
 
   const tabs = [
     { id: 'profile', label: 'Profile', icon: User },
@@ -72,11 +142,30 @@ export default function Settings() {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Input label="First Name" defaultValue={firstName} />
-                    <Input label="Last Name" defaultValue={lastName} />
+                    <Input
+                      label="First Name"
+                      value={profileForm.fullName ? profileForm.fullName.split(' ')[0] ?? '' : ''}
+                      onChange={(e) => {
+                        const rest = profileForm.fullName.split(' ').slice(1);
+                        setProfileForm((p) => ({ ...p, fullName: [e.target.value, ...rest].join(' ').trim() }));
+                      }}
+                    />
+                    <Input
+                      label="Last Name"
+                      value={profileForm.fullName ? profileForm.fullName.split(' ').slice(1).join(' ') : ''}
+                      onChange={(e) => {
+                        const first = profileForm.fullName.split(' ')[0] ?? '';
+                        setProfileForm((p) => ({ ...p, fullName: [first, e.target.value].join(' ').trim() }));
+                      }}
+                    />
                   </div>
-                  <Input label="Email Address" type="email" defaultValue={user?.email ?? ''} />
-                  <Input label="Phone Number" type="tel" defaultValue={user?.phoneNumber ?? ''} />
+                  <Input label="Email Address" type="email" value={user?.email ?? ''} readOnly className="bg-[#F8FAFC]" />
+                  <Input
+                    label="Phone Number"
+                    type="tel"
+                    value={profileForm.phoneNumber}
+                    onChange={(e) => setProfileForm((p) => ({ ...p, phoneNumber: e.target.value }))}
+                  />
                   <div>
                     <label className="block text-sm mb-2 text-[#0F172A]">Bio</label>
                     <textarea
@@ -88,7 +177,9 @@ export default function Settings() {
                   </div>
                 </div>
                 <div className="flex justify-end mt-6 pt-6 border-t border-[#E2E8F0]">
-                  <Button>Save Changes</Button>
+                  <Button onClick={handleSaveProfile} disabled={savingProfile || profileLoading}>
+                    {savingProfile ? 'Saving...' : 'Save Changes'}
+                  </Button>
                 </div>
               </Card>
             </>
@@ -126,12 +217,29 @@ export default function Settings() {
               <Card>
                 <h3 className="text-lg font-semibold text-[#0F172A] mb-6">Change Password</h3>
                 <div className="space-y-4">
-                  <Input label="Current Password" type="password" />
-                  <Input label="New Password" type="password" />
-                  <Input label="Confirm New Password" type="password" />
+                  <Input
+                    label="Current Password"
+                    type="password"
+                    value={passwordForm.currentPassword}
+                    onChange={(e) => setPasswordForm((p) => ({ ...p, currentPassword: e.target.value }))}
+                  />
+                  <Input
+                    label="New Password"
+                    type="password"
+                    value={passwordForm.newPassword}
+                    onChange={(e) => setPasswordForm((p) => ({ ...p, newPassword: e.target.value }))}
+                  />
+                  <Input
+                    label="Confirm New Password"
+                    type="password"
+                    value={passwordForm.confirmPassword}
+                    onChange={(e) => setPasswordForm((p) => ({ ...p, confirmPassword: e.target.value }))}
+                  />
                 </div>
                 <div className="flex justify-end mt-6 pt-6 border-t border-[#E2E8F0]">
-                  <Button>Update Password</Button>
+                  <Button onClick={handleChangePassword} disabled={savingPassword}>
+                    {savingPassword ? 'Updating...' : 'Update Password'}
+                  </Button>
                 </div>
               </Card>
 

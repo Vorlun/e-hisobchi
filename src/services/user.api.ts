@@ -71,12 +71,20 @@ export async function getProfile(): Promise<UserProfile> {
 }
 
 export async function updateProfile(data: UpdateProfileRequest): Promise<UserProfile> {
-  const res = await api<UserProfile>('/users/me', {
+  const res = await api<UserProfile | { success?: boolean; data?: UserProfile }>('/users/me', {
     method: 'PUT',
     body: JSON.stringify(data),
   });
-  if (!res?.id) throw new Error('Invalid profile response');
-  return res;
+  const raw = res && typeof res === 'object' && 'data' in res ? (res as { data?: UserProfile }).data : (res as UserProfile);
+  if (!raw?.id && !raw?.fullName) throw new Error('Invalid profile response');
+  return {
+    id: raw.id ?? '',
+    fullName: raw.fullName ?? '',
+    email: raw.email ?? '',
+    phoneNumber: raw.phoneNumber ?? '',
+    defaultCurrency: raw.defaultCurrency ?? 'UZS',
+    emailVerified: (raw as UserProfile).emailVerified,
+  };
 }
 
 export async function deleteAccount(password: string): Promise<void> {

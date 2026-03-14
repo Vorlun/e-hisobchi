@@ -15,7 +15,14 @@ interface FinancialRiskScoreProps {
 }
 
 export function FinancialRiskScore({ score, factors }: FinancialRiskScoreProps) {
-  const getRiskLevel = () => {
+  const getRiskLevel = (): {
+    level: string;
+    color: 'success' | 'warning' | 'danger';
+    bg: string;
+    border: string;
+    text: string;
+    icon: typeof CheckCircle2;
+  } => {
     if (score <= 30) return { level: 'Low Risk', color: 'success', bg: 'bg-[#D1FAE5]', border: 'border-[#10B981]', text: 'text-[#10B981]', icon: CheckCircle2 };
     if (score <= 60) return { level: 'Medium Risk', color: 'warning', bg: 'bg-[#FEF3C7]', border: 'border-[#F59E0B]', text: 'text-[#F59E0B]', icon: AlertTriangle };
     return { level: 'High Risk', color: 'danger', bg: 'bg-[#FEE2E2]', border: 'border-[#DC2626]', text: 'text-[#DC2626]', icon: AlertTriangle };
@@ -77,7 +84,7 @@ export function FinancialRiskScore({ score, factors }: FinancialRiskScoreProps) 
               <p className="text-xs text-[#64748B]">Real-time financial stability assessment</p>
             </div>
           </div>
-          <Badge variant={risk.color as any}>
+          <Badge variant={risk.color}>
             {risk.level}
           </Badge>
         </div>

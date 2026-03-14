@@ -89,30 +89,3 @@ export async function getBudgetStatus(): Promise<BudgetStatus[]> {
   return list;
 }
 
-/**
- * Budgets API — transport layer for backend. Replace store mutations with these when API is available.
- */
-
-import type { Budget } from '../types';
-import { api } from './api';
-
-export async function fetchBudgets(month?: string): Promise<Budget[]> {
-  const q = month ? `?month=${month}` : '';
-  return api<Budget[]>(`/budgets${q}`);
-}
-
-export async function createBudgetApi(
-  data: Omit<Budget, 'id' | 'createdAt'>
-): Promise<Budget> {
-  return api<Budget>('/budgets', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-}
-
-export async function updateBudgetApi(id: string, data: Partial<Budget>): Promise<Budget> {
-  return api<Budget>(`/budgets/${id}`, {
-    method: 'PATCH',
-    body: JSON.stringify(data),
-  });
-}

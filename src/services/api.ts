@@ -110,6 +110,11 @@ export async function api<T>(
       toast.error(message);
       throw new Error(message);
     }
+    if (res.status === 404) {
+      message = detail || 'Resource not found.';
+      toast.error(message);
+      throw new Error(message);
+    }
     if (res.status === 409) {
       message = detail || 'User already exists';
       toast.error(message);
@@ -135,3 +140,8 @@ export async function api<T>(
 }
 
 export const isApiAvailable = Boolean(API_BASE);
+
+/** Base URL for API requests (for consumers that need it). */
+export function getBaseUrl(): string {
+  return API_BASE;
+}

@@ -34,17 +34,24 @@ export default function Accounts() {
 
   const handleAddAccount = (e: React.FormEvent) => {
     e.preventDefault();
+    const name = formData.name.trim();
+    if (!name) return;
     const balance = parseFloat(formData.balance) || 0;
-    addAccount(formData.name, formData.type, balance, formData.currency);
+    if (balance < 0) return;
+    addAccount(name, formData.type, balance, formData.currency);
     setIsAddModalOpen(false);
     setFormData({ name: '', type: 'card', currency: 'UZS', balance: '' });
   };
 
+  const isAddFormValid = formData.name.trim().length > 0;
+
   const handleEditAccount = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingAccount) return;
+    const name = formData.name.trim();
+    if (!name) return;
     updateAccount(editingAccount.id, {
-      name: formData.name,
+      name,
       type: toAccountType(formData.type),
       currency: formData.currency,
     });
@@ -206,7 +213,7 @@ export default function Accounts() {
             <Button type="button" variant="secondary" className="flex-1" onClick={() => setIsAddModalOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" className="flex-1">
+            <Button type="submit" className="flex-1" disabled={!isAddFormValid}>
               Add Account
             </Button>
           </div>

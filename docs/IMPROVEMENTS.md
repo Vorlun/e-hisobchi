@@ -4,6 +4,18 @@ This document lists technical fixes and improvements applied to the frontend. **
 
 ---
 
+## 0. Full-stack audit (backend integration)
+
+- **API client (`src/services/api.ts`):** Explicit **404** handling with user-friendly message ("Resource not found"); **getBaseUrl()** exported for consumers.
+- **lib/apiClient.ts:** Re-exports `api`, `isApiAvailable`, `getBaseUrl`; documented base URL, auth headers, token refresh, and error normalization (400, 401, 403, 404, 409, 429, 5xx).
+- **Budgets API:** Removed duplicate legacy block (`fetchBudgets`, `createBudgetApi`, `updateBudgetApi`) that conflicted with main `getBudgets`/`createBudget`/`updateBudget`/`getBudgetStatus`.
+- **User profile API:** `updateProfile` in `user.api.ts` unwraps wrapped `{ success, data }` responses so both auth store and user store receive a consistent `UserProfile`; `user.service.ts` simplified to use the unwrapped result.
+- **Type safety:** Removed `as any` in `FinancialRiskScore` by typing `getRiskLevel()` return with `color: 'success' | 'warning' | 'danger'` to match `Badge` variant.
+- **Login form:** Client-side validation for sign-in (email required, valid email format, password required) before calling the API.
+- **Accounts form:** Add-account validation (name required, balance ≥ 0); "Add Account" button disabled when name is empty; edit account requires non-empty name.
+
+---
+
 ## 1. Bug fixes
 
 ### Time filter (store)

@@ -89,8 +89,21 @@ export default function Login() {
   const handleCredentialsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      setError('Email is required');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+    if (!password) {
+      setError('Password is required');
+      return;
+    }
     try {
-      await login(email.trim(), password);
+      await login(trimmedEmail, password);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sign in failed');
     }

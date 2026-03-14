@@ -2,8 +2,6 @@ import React, { createContext, useCallback, useEffect, useMemo, useRef, useState
 import type { Account, AccountType, Transaction, Budget, Debt, DebtDirection, Category } from '../types';
 import { createTransaction } from '../services/transactions';
 import { createAccount, toAccountType, toDisplayAccountType, generateId } from '../services/accounts';
-import { createBudget as createBudgetRecord, getCurrentMonth } from '../services/budgets';
-import { createDebt as createDebtRecord } from '../services/debts';
 import {
   applyDeltasToAccounts,
   getTransactionDeltas,
@@ -17,61 +15,36 @@ import {
   selectIncomeVsExpenseTimeline,
 } from '../services/selectors';
 import { validateTransaction, validateTransfer } from '../services/validation';
-import { getTodayString, getStatsDateRange } from '../utils/dates';
+import { getTodayString } from '../utils/dates';
 import type { TimeFilter } from '../utils/dates';
 import { isApiAvailable } from '../services/api';
 import { useAccounts } from './accountStore';
 import { useTransactions } from './transactionStore';
 import { useTransfers } from './transferStore';
-import type { BankCard, CreateCardRequest, UpdateCardRequest } from '../services/cards.api';
-import * as cardsApi from '../services/cards.api';
+import { useCards } from './cardStore';
+import { useBudgets } from './budgetStore';
+import { useCategories } from './categoryStore';
+import { useDebts } from './debtStore';
+import { useStatistics } from './statisticsStore';
+import type { Card, CreateCardRequest, UpdateCardRequest } from '../types/card.types';
+import type { BudgetStatus } from '../types/budget.types';
+import type { CreateCategoryRequest, UpdateCategoryRequest } from '../types/category.types';
+import type { DebtSummary } from '../types/debt.types';
 import type { TransactionFilters } from '../types/transaction.types';
-import * as categoriesApi from '../services/categories.api';
-import * as budgetsApi from '../services/budgets.api';
 import type { Transfer } from '../services/transfers.api';
 import type { TransferPagination, TransferPurpose } from '../types/transfer.types';
-import * as debtsApi from '../services/debts.api';
-import * as statisticsApi from '../services/statistics.api';
+import type {
+  SummaryStats,
+  TimelineDataPoint,
+  CategoryStatsItem,
+  CalendarStatsItem,
+  TopCategoryItem,
+} from '../types/statistics.types';
 import type { TransactionType } from '../types';
 
 /** Normalize category for comparison (budgets may use display names; transactions use ids). */
 function categoryMatches(a: string, b: string): boolean {
   return a.toLowerCase().trim() === b.toLowerCase().trim();
-}
-
-function mapApiCategoryTypeToLocal(type: string): Category['type'] {
-  const lower = type.toLowerCase();
-  if (lower === 'income') return 'income';
-  if (lower === 'expense') return 'expense';
-  if (lower === 'transfer') return 'transfer';
-  return 'expense';
-}
-
-function mapApiCategoryToCategory(apiCat: categoriesApi.Category): Category {
-  return {
-    id: apiCat.id,
-    name: apiCat.name,
-    type: mapApiCategoryTypeToLocal(apiCat.type),
-    color: apiCat.color,
-    isDefault: apiCat.isDefault,
-  };
-}
-
-function mapApiDebtToDebt(apiDebt: debtsApi.Debt): Debt {
-  return {
-    id: apiDebt.id,
-    personName: apiDebt.personName,
-    amount: apiDebt.amount,
-    direction: apiDebt.type,
-    status: apiDebt.status,
-    date: apiDebt.date,
-    dueDate: apiDebt.dueDate,
-    notes: apiDebt.description,
-    createdAt: apiDebt.date,
-    personPhone: apiDebt.personPhone,
-    currency: apiDebt.currency,
-    overdue: apiDebt.overdue,
-  };
 }
 
 // Re-export for consumers
@@ -93,7 +66,7 @@ const DEFAULT_PAGINATION: TransactionPagination = {
 
 interface FinanceState {
   accounts: Account[];
-  cards: BankCard[];
+  cards: Card[];
   transactions: Transaction[];
   transactionPagination: TransactionPagination;
   transactionFilters: TransactionFilters;
@@ -107,15 +80,15 @@ interface FinanceState {
   transferPurposes: TransferPurpose[];
   budgets: Budget[];
   /** Backend-derived budget status entries keyed by budget/category. */
-  budgetStatus: budgetsApi.BudgetStatus[];
+  budgetStatus: BudgetStatus[];
   debts: Debt[];
-  debtSummary: debtsApi.DebtSummary | null;
-  summaryStats: statisticsApi.SummaryStats | null;
-  timelineStats: statisticsApi.TimelineDataPoint[];
-  categoryStats: statisticsApi.CategoryStatsItem[];
-  incomeCategoryStats: statisticsApi.CategoryStatsItem[];
-  calendarStats: statisticsApi.CalendarStatsItem[];
-  topCategories: statisticsApi.TopCategoryItem[];
+  debtSummary: DebtSummary | null;
+  summaryStats: SummaryStats | null;
+  timelineStats: TimelineDataPoint[];
+  categoryStats: CategoryStatsItem[];
+  incomeCategoryStats: CategoryStatsItem[];
+  calendarStats: CalendarStatsItem[];
+  topCategories: TopCategoryItem[];
   loadingAccounts: boolean;
   loadingTransactions: boolean;
   loadingTransfers: boolean;
@@ -125,8 +98,8 @@ interface FinanceState {
 }
 
 export interface DebtFilters {
-  type?: debtsApi.DebtType;
-  status?: debtsApi.DebtStatus;
+  type?: import('../types/debt.types').DebtTypeApi;
+  status?: import('../types/debt.types').DebtStatusApi;
 }
 
 interface FinanceContextValue extends FinanceState {
@@ -136,7 +109,10 @@ interface FinanceContextValue extends FinanceState {
   loadTransactions: () => Promise<void>;
   setTransactionFilters: (filters: Partial<TransactionFilters>) => void;
   setTransactionPage: (page: number) => void;
-  loadCategories: () => Promise<void>;
+  loadCategories: (type?: import('../types/category.types').CategoryTypeApi) => Promise<void>;
+  createCategory: (data: CreateCategoryRequest) => Promise<void>;
+  updateCategory: (id: string, data: UpdateCategoryRequest) => Promise<void>;
+  deleteCategory: (id: string) => Promise<void>;
   loadBudgets: () => Promise<void>;
   loadBudgetStatus: () => Promise<void>;
   loadTransfers: () => Promise<void>;
@@ -161,6 +137,7 @@ interface FinanceContextValue extends FinanceState {
   addTransfer: (fromAccountId: string, toAccountId: string, amount: number, title?: string, purpose?: string) => void | Promise<void>;
   addBudget: (category: string, limit: number) => void;
   updateBudget: (id: string, data: Partial<Budget>) => void;
+  deleteBudget: (id: string) => Promise<void>;
   updateBudgetSpent: (categoryId: string, spent: number) => void;
   addDebt: (
     personName: string,
@@ -181,6 +158,52 @@ interface FinanceContextValue extends FinanceState {
 const FinanceContext = createContext<FinanceContextValue | null>(null);
 
 export function FinanceProvider({ children }: { children: React.ReactNode }) {
+  const {
+    cards: cardsFromStore,
+    loading: loadingCards,
+    fetchCards: fetchCardsFromStore,
+    createCard: createCardInStore,
+    updateCard: updateCardInStore,
+    archiveCard: archiveCardInStore,
+    lookupCard: lookupCardFromStore,
+  } = useCards();
+  const {
+    budgets: budgetsFromStore,
+    budgetStatus: budgetStatusFromStore,
+    loading: loadingBudgets,
+    fetchBudgets: fetchBudgetsFromStore,
+    fetchBudgetStatus: fetchBudgetStatusFromStore,
+    createBudget: createBudgetInStore,
+    updateBudget: updateBudgetInStore,
+    deleteBudget: deleteBudgetInStore,
+  } = useBudgets();
+  const {
+    categories: categoriesFromStore,
+    fetchCategories: fetchCategoriesFromStore,
+    createCategory: createCategoryInStore,
+    updateCategory: updateCategoryInStore,
+    deleteCategory: deleteCategoryInStore,
+  } = useCategories();
+  const {
+    debts: debtsFromStore,
+    summary: debtSummaryFromStore,
+    loading: loadingDebts,
+    fetchDebts: fetchDebtsFromStore,
+    fetchDebtSummary: fetchDebtSummaryFromStore,
+    createDebt: createDebtInStore,
+    updateDebt: updateDebtInStore,
+    closeDebt: closeDebtInStore,
+  } = useDebts();
+  const {
+    summaryStats: summaryStatsFromStore,
+    timelineStats: timelineStatsFromStore,
+    categoryStats: categoryStatsFromStore,
+    incomeCategoryStats: incomeCategoryStatsFromStore,
+    calendarStats: calendarStatsFromStore,
+    topCategories: topCategoriesFromStore,
+    loading: loadingStats,
+    loadStats: loadStatsFromStore,
+  } = useStatistics();
   const {
     accounts,
     loading: loadingAccounts,
@@ -214,29 +237,21 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     createTransfer: createTransferInStore,
     fetchTransferPurposes: fetchTransferPurposesFromStore,
   } = useTransfers();
-  const [cards, setCards] = useState<BankCard[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [incomeCategories, setIncomeCategories] = useState<Category[]>([]);
-  const [expenseCategories, setExpenseCategories] = useState<Category[]>([]);
-  const [transferCategories, setTransferCategories] = useState<Category[]>([]);
-  const [budgets, setBudgets] = useState<Budget[]>([]);
-  const [budgetStatus, setBudgetStatus] = useState<budgetsApi.BudgetStatus[]>([]);
-  const [debts, setDebts] = useState<Debt[]>([]);
-  const [debtSummary, setDebtSummary] = useState<debtsApi.DebtSummary | null>(null);
-  const [summaryStats, setSummaryStats] = useState<statisticsApi.SummaryStats | null>(null);
-  const [timelineStats, setTimelineStats] = useState<statisticsApi.TimelineDataPoint[]>([]);
-  const [categoryStats, setCategoryStats] = useState<statisticsApi.CategoryStatsItem[]>([]);
-  const [incomeCategoryStats, setIncomeCategoryStats] = useState<statisticsApi.CategoryStatsItem[]>([]);
-  const [calendarStats, setCalendarStats] = useState<statisticsApi.CalendarStatsItem[]>([]);
-  const [topCategories, setTopCategories] = useState<statisticsApi.TopCategoryItem[]>([]);
-  const [loadingBudgets, setLoadingBudgets] = useState(false);
-  const [loadingDebts, setLoadingDebts] = useState(false);
-  const [loadingStats, setLoadingStats] = useState(false);
-  const lastDebtFiltersRef = useRef<DebtFilters>({});
-  const statsRequestIdRef = useRef(0);
-  const debtsRequestIdRef = useRef(0);
-
   const totalBalance = useMemo(() => selectTotalBalance(accounts), [accounts]);
+
+  const categories = useMemo(() => categoriesFromStore, [categoriesFromStore]);
+  const incomeCategories = useMemo(
+    () => categoriesFromStore.filter((c) => c.type === 'income'),
+    [categoriesFromStore]
+  );
+  const expenseCategories = useMemo(
+    () => categoriesFromStore.filter((c) => c.type === 'expense'),
+    [categoriesFromStore]
+  );
+  const transferCategories = useMemo(
+    () => categoriesFromStore.filter((c) => c.type === 'transfer'),
+    [categoriesFromStore]
+  );
 
   const loadTransactions = useCallback(async () => {
     if (!isApiAvailable) return;
@@ -259,70 +274,46 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
 
   const loadBudgets = useCallback(async () => {
     if (!isApiAvailable) return;
-    setLoadingBudgets(true);
-    try {
-      const list = await budgetsApi.getBudgets();
-      // Map backend budgets to local Budget shape for UI compatibility.
-      const mapped: Budget[] = list.map((b) => ({
-        id: b.id,
-        category: b.categoryName,
-        limit: b.amount,
-        spent: 0, // will be filled from budgetStatus
-        month: `${b.year}-${String(b.month).padStart(2, '0')}`,
-        createdAt: new Date().toISOString(),
-      }));
-      setBudgets(mapped);
-    } catch {
-      // handled by api()
-    } finally {
-      setLoadingBudgets(false);
-    }
-  }, []);
+    await fetchBudgetsFromStore();
+    await fetchBudgetStatusFromStore();
+  }, [fetchBudgetsFromStore, fetchBudgetStatusFromStore]);
 
   const loadBudgetStatus = useCallback(async () => {
     if (!isApiAvailable) return;
-    try {
-      const status = await budgetsApi.getBudgetStatus();
-      setBudgetStatus(status);
-      // Also sync "spent" into local budgets for components that still read it.
-      setBudgets((prev) =>
-        prev.map((b) => {
-          const s = status.find((st) => st.budgetId === b.id || st.categoryName === b.category);
-          if (!s) return b;
-          return { ...b, spent: s.spentAmount, limit: s.budgetAmount };
-        })
-      );
-    } catch {
-      // handled by api()
-    }
-  }, []);
+    await fetchBudgetStatusFromStore();
+  }, [fetchBudgetStatusFromStore]);
 
-  useEffect(() => {
-    if (isApiAvailable) {
-      loadBudgets();
-      loadBudgetStatus();
-    }
-  }, [loadBudgets, loadBudgetStatus]);
+  const loadCategories = useCallback(
+    async (type?: import('../types/category.types').CategoryTypeApi) => {
+      if (!isApiAvailable) return;
+      await fetchCategoriesFromStore(type);
+    },
+    [fetchCategoriesFromStore]
+  );
 
-  const loadCategories = useCallback(async () => {
-    if (!isApiAvailable) return;
-    try {
-      const all = await categoriesApi.getCategories();
-      const mapped = all.map(mapApiCategoryToCategory);
-      setCategories(mapped);
-      setIncomeCategories(mapped.filter((c) => c.type === 'income'));
-      setExpenseCategories(mapped.filter((c) => c.type === 'expense'));
-      setTransferCategories(mapped.filter((c) => c.type === 'transfer'));
-    } catch {
-      // 401 etc. handled by api()
-    }
-  }, []);
+  const createCategory = useCallback(
+    async (data: CreateCategoryRequest) => {
+      if (!isApiAvailable) return;
+      await createCategoryInStore(data);
+    },
+    [createCategoryInStore]
+  );
 
-  useEffect(() => {
-    if (isApiAvailable) {
-      loadCategories();
-    }
-  }, [loadCategories]);
+  const updateCategory = useCallback(
+    async (id: string, data: UpdateCategoryRequest) => {
+      if (!isApiAvailable) return;
+      await updateCategoryInStore(id, data);
+    },
+    [updateCategoryInStore]
+  );
+
+  const deleteCategory = useCallback(
+    async (id: string) => {
+      if (!isApiAvailable) return;
+      await deleteCategoryInStore(id);
+    },
+    [deleteCategoryInStore]
+  );
 
   const loadTransfers = useCallback(async () => {
     if (!isApiAvailable) return;
@@ -334,81 +325,25 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     await fetchTransferPurposesFromStore();
   }, [fetchTransferPurposesFromStore]);
 
-  const loadDebts = useCallback(async (filters?: DebtFilters) => {
-    if (!isApiAvailable) return;
-    debtsRequestIdRef.current += 1;
-    const requestId = debtsRequestIdRef.current;
-    setLoadingDebts(true);
-    try {
-      const next = filters ?? lastDebtFiltersRef.current;
-      if (filters) lastDebtFiltersRef.current = next;
-      const list = await debtsApi.getDebts(next);
-      if (debtsRequestIdRef.current !== requestId) return;
-      setDebts(list.map(mapApiDebtToDebt));
-    } catch {
-      // 401 etc. handled by api()
-    } finally {
-      setLoadingDebts(false);
-    }
-  }, []);
+  const loadDebts = useCallback(
+    async (filters?: DebtFilters) => {
+      if (!isApiAvailable) return;
+      await fetchDebtsFromStore(filters);
+    },
+    [fetchDebtsFromStore]
+  );
 
   const loadDebtSummary = useCallback(async () => {
     if (!isApiAvailable) return;
-    try {
-      const summary = await debtsApi.getDebtSummary();
-      setDebtSummary(summary);
-    } catch {
-      // 401 etc. handled by api()
-    }
-  }, []);
-
-  useEffect(() => {
-    if (isApiAvailable) {
-      loadDebtSummary();
-    }
-  }, [loadDebtSummary]);
-
-  const timeFilterToPeriod = useCallback((filter: TimeFilter): statisticsApi.StatsPeriod => {
-    const map: Record<TimeFilter, statisticsApi.StatsPeriod> = {
-      daily: 'DAILY',
-      weekly: 'WEEKLY',
-      monthly: 'MONTHLY',
-      yearly: 'YEARLY',
-    };
-    return map[filter];
-  }, []);
+    await fetchDebtSummaryFromStore();
+  }, [fetchDebtSummaryFromStore]);
 
   const loadStats = useCallback(
     async (filter: TimeFilter) => {
       if (!isApiAvailable) return;
-      statsRequestIdRef.current += 1;
-      const requestId = statsRequestIdRef.current;
-      setLoadingStats(true);
-      try {
-        const { dateFrom, dateTo } = getStatsDateRange(filter);
-        const period = timeFilterToPeriod(filter);
-        const [summary, timeline, byCategoryExpense, byCategoryIncome, calendar, top] = await Promise.all([
-          statisticsApi.getSummary({ dateFrom, dateTo, currency: 'UZS' }),
-          statisticsApi.getTimeline(period, dateFrom, dateTo),
-          statisticsApi.getCategoryStats('EXPENSE', dateFrom, dateTo),
-          statisticsApi.getCategoryStats('INCOME', dateFrom, dateTo),
-          statisticsApi.getCalendarStats(dateFrom, dateTo),
-          statisticsApi.getTopCategories(dateFrom, dateTo, 5),
-        ]);
-        if (statsRequestIdRef.current !== requestId) return;
-        setSummaryStats(summary);
-        setTimelineStats(timeline);
-        setCategoryStats(byCategoryExpense);
-        setIncomeCategoryStats(byCategoryIncome);
-        setCalendarStats(calendar);
-        setTopCategories(top);
-      } catch {
-        // 401 etc. handled by api()
-      } finally {
-        setLoadingStats(false);
-      }
+      await loadStatsFromStore(filter);
     },
-    [timeFilterToPeriod]
+    [loadStatsFromStore]
   );
 
   const loadAccounts = useCallback(async () => {
@@ -418,13 +353,8 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
 
   const loadCards = useCallback(async () => {
     if (!isApiAvailable) return;
-    try {
-      const list = await cardsApi.getCards();
-      setCards(list);
-    } catch {
-      // 401 etc. handled by api()
-    }
-  }, []);
+    await fetchCardsFromStore();
+  }, [fetchCardsFromStore]);
 
   useEffect(() => {
     if (isApiAvailable) {
@@ -504,38 +434,34 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   const createCard = useCallback(
     async (data: CreateCardRequest) => {
       if (!isApiAvailable) return;
-      await cardsApi.createCard(data);
-      await loadCards();
+      await createCardInStore(data);
     },
-    [loadCards]
+    [createCardInStore]
   );
 
   const updateCard = useCallback(
     async (id: string, data: UpdateCardRequest) => {
       if (!isApiAvailable) return;
-      await cardsApi.updateCard(id, data);
-      await loadCards();
+      await updateCardInStore(id, data);
     },
-    [loadCards]
+    [updateCardInStore]
   );
 
   const archiveCard = useCallback(
     async (id: string) => {
       if (!isApiAvailable) return;
-      await cardsApi.archiveCard(id);
-      await loadCards();
+      await archiveCardInStore(id);
     },
-    [loadCards]
+    [archiveCardInStore]
   );
 
-  const lookupCard = useCallback(async (cardNumber: string) => {
-    if (!isApiAvailable) return null;
-    try {
-      return await cardsApi.lookupCard(cardNumber);
-    } catch {
-      return null;
-    }
-  }, []);
+  const lookupCard = useCallback(
+    async (cardNumber: string) => {
+      if (!isApiAvailable) return null;
+      return lookupCardFromStore(cardNumber);
+    },
+    [lookupCardFromStore]
+  );
 
   const addTransaction = useCallback(
     async (data: Omit<Transaction, 'id' | 'createdAt'>) => {
@@ -603,65 +529,61 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   const addBudget = useCallback(
     async (categoryName: string, limit: number) => {
       if (isApiAvailable) {
-        // Find matching expense category by name; backend expects categoryId.
         const cat = expenseCategories.find((c) => c.name === categoryName) ?? expenseCategories[0];
         if (!cat) throw new Error('No expense category available for budget');
         const now = new Date();
-        await budgetsApi.createBudget({
-          categoryId: cat.id,
+        await createBudgetInStore({
+          categoryId: String(cat.id),
           amount: limit,
           period: 'MONTHLY',
           year: now.getFullYear(),
           month: now.getMonth() + 1,
         });
-        await loadBudgets();
-        await loadBudgetStatus();
         return;
       }
-      const month = getCurrentMonth();
-      setBudgets((prev) => {
-        const existing = prev.find(
-          (b) => categoryMatches(b.category, categoryName) && b.month === month
-        );
-        const spent = existing?.spent ?? 0;
-        const newBudget = createBudgetRecord(categoryName, limit, spent);
-        return [...prev, newBudget];
-      });
+      // Non-API mode: budget store not used; no-op
     },
-    [expenseCategories, loadBudgets, loadBudgetStatus]
+    [expenseCategories, createBudgetInStore, isApiAvailable]
   );
 
   const updateBudget = useCallback(
     async (id: string, data: Partial<Budget>) => {
       if (isApiAvailable) {
-        const existing = budgets.find((b) => b.id === id);
+        const existing = budgetsFromStore.find((b) => b.id === id);
         if (!existing) return;
         const cat =
           expenseCategories.find((c) => c.name === (data.category ?? existing.category)) ??
           expenseCategories[0];
         if (!cat) return;
         const [yearStr, monthStr] = existing.month.split('-');
-        await budgetsApi.updateBudget(id, {
-          categoryId: cat.id,
+        await updateBudgetInStore(id, {
+          categoryId: String(cat.id),
           amount: data.limit ?? existing.limit,
           period: 'MONTHLY',
           year: Number(yearStr),
           month: Number(monthStr),
         });
-        await loadBudgets();
-        await loadBudgetStatus();
         return;
       }
-      setBudgets((prev) => prev.map((b) => (b.id === id ? { ...b, ...data } : b)));
+      // Non-API mode: no-op
     },
-    [budgets, expenseCategories, loadBudgets, loadBudgetStatus]
+    [budgetsFromStore, expenseCategories, updateBudgetInStore, isApiAvailable]
   );
 
-  const updateBudgetSpent = useCallback((categoryId: string, spent: number) => {
-    setBudgets((prev) =>
-      prev.map((b) => (b.id === categoryId ? { ...b, spent } : b))
-    );
-  }, []);
+  const deleteBudget = useCallback(
+    async (id: string) => {
+      if (!isApiAvailable) return;
+      await deleteBudgetInStore(id);
+    },
+    [deleteBudgetInStore, isApiAvailable]
+  );
+
+  const updateBudgetSpent = useCallback(
+    (categoryId: string, _spent: number) => {
+      if (isApiAvailable) fetchBudgetStatusFromStore();
+    },
+    [fetchBudgetStatusFromStore, isApiAvailable]
+  );
 
   const addDebt = useCallback(
     async (
@@ -673,7 +595,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       notes?: string
     ) => {
       if (isApiAvailable) {
-        await debtsApi.createDebt({
+        await createDebtInStore({
           type: direction,
           personName,
           amount,
@@ -682,22 +604,19 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
           date,
           dueDate,
         });
-        await loadDebts();
-        await loadDebtSummary();
         return;
       }
-      const newDebt = createDebtRecord(personName, amount, direction, date, dueDate, notes);
-      setDebts((prev) => [...prev, newDebt]);
+      // Non-API: no local debt state
     },
-    [loadDebts, loadDebtSummary]
+    [createDebtInStore, isApiAvailable]
   );
 
   const updateDebt = useCallback(
     async (id: string, data: Partial<Debt>) => {
       if (isApiAvailable) {
-        const existing = debts.find((d) => d.id === id);
+        const existing = debtsFromStore.find((d) => d.id === id);
         if (!existing) return;
-        await debtsApi.updateDebt(id, {
+        await updateDebtInStore(id, {
           type: existing.direction,
           personName: data.personName ?? existing.personName,
           amount: data.amount ?? existing.amount,
@@ -706,28 +625,22 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
           date: data.date ?? existing.date,
           dueDate: data.dueDate ?? existing.dueDate,
         });
-        await loadDebts();
-        await loadDebtSummary();
         return;
       }
-      setDebts((prev) => prev.map((d) => (d.id === id ? { ...d, ...data } : d)));
+      // Non-API: no-op
     },
-    [debts, loadDebts, loadDebtSummary]
+    [debtsFromStore, updateDebtInStore, isApiAvailable]
   );
 
   const markDebtClosed = useCallback(
     async (id: string) => {
       if (isApiAvailable) {
-        await debtsApi.closeDebt(id);
-        await loadDebts();
-        await loadDebtSummary();
+        await closeDebtInStore(id);
         return;
       }
-      setDebts((prev) =>
-        prev.map((d) => (d.id === id ? { ...d, status: 'CLOSED' as const } : d))
-      );
+      // Non-API: no-op
     },
-    [loadDebts, loadDebtSummary]
+    [closeDebtInStore, isApiAvailable]
   );
 
   const getTransactionsByTimeFilter = useCallback(
@@ -748,7 +661,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<FinanceContextValue>(
     () => ({
       accounts,
-      cards,
+      cards: cardsFromStore,
       transactions,
       transactionPagination,
       transactionFilters,
@@ -759,16 +672,16 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       transfers,
       transferPagination,
       transferPurposes,
-      budgets,
-      budgetStatus,
-      debts,
-      debtSummary,
-      summaryStats,
-      timelineStats,
-      categoryStats,
-      incomeCategoryStats,
-      calendarStats,
-      topCategories,
+      budgets: budgetsFromStore,
+      budgetStatus: budgetStatusFromStore,
+      debts: debtsFromStore,
+      debtSummary: debtSummaryFromStore,
+      summaryStats: summaryStatsFromStore,
+      timelineStats: timelineStatsFromStore,
+      categoryStats: categoryStatsFromStore,
+      incomeCategoryStats: incomeCategoryStatsFromStore,
+      calendarStats: calendarStatsFromStore,
+      topCategories: topCategoriesFromStore,
       loadingAccounts,
       loadingTransactions,
       loadingTransfers,
@@ -782,6 +695,9 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       setTransactionFilters,
       setTransactionPage,
       loadCategories,
+      createCategory,
+      updateCategory,
+      deleteCategory,
       loadBudgets,
       loadBudgetStatus,
       loadTransfers,
@@ -806,6 +722,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       addTransfer,
       addBudget,
       updateBudget,
+      deleteBudget,
       updateBudgetSpent,
       addDebt,
       updateDebt,
@@ -817,7 +734,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
     }),
     [
       accounts,
-      cards,
+      cardsFromStore,
       transactions,
       transactionPagination,
       transactionFilters,
@@ -828,16 +745,16 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       transfers,
       transferPagination,
       transferPurposes,
-      budgets,
-      budgetStatus,
-      debts,
-      debtSummary,
-      summaryStats,
-      timelineStats,
-      categoryStats,
-      incomeCategoryStats,
-      calendarStats,
-      topCategories,
+      budgetsFromStore,
+      budgetStatusFromStore,
+      debtsFromStore,
+      debtSummaryFromStore,
+      summaryStatsFromStore,
+      timelineStatsFromStore,
+      categoryStatsFromStore,
+      incomeCategoryStatsFromStore,
+      calendarStatsFromStore,
+      topCategoriesFromStore,
       loadingAccounts,
       loadingTransactions,
       loadingTransfers,
@@ -851,6 +768,9 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       setTransactionFilters,
       setTransactionPage,
       loadCategories,
+      createCategory,
+      updateCategory,
+      deleteCategory,
       loadBudgets,
       loadBudgetStatus,
       loadTransfers,
@@ -875,6 +795,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       addTransfer,
       addBudget,
       updateBudget,
+      deleteBudget,
       updateBudgetSpent,
       addDebt,
       updateDebt,
