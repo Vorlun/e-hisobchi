@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router';
 import { Lock, Mail, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { AuthLogo } from '../components/logo';
 import { useAuth } from '../../store/authStore';
 import { getAccessToken } from '../../services/tokenStorage';
 
@@ -145,13 +146,7 @@ export default function Login() {
       <div className="w-full max-w-md flex flex-col items-center justify-center">
         <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-10 space-y-6">
           <div className="text-center">
-            <div className="flex justify-center">
-              <img
-                src="/logo_full.png"
-                alt="e-hisobchi"
-                className="w-[70%] max-w-[300px] min-w-[180px] object-contain -mb-5 -mt-4"
-              />
-            </div>
+            <AuthLogo />
             <h1 className="text-2xl font-semibold text-gray-900 text-center">
               {mode === 'login' ? 'Welcome back' : 'Create account'}
             </h1>

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { ShieldCheck, Loader2 } from 'lucide-react';
-import { Logo } from '../components/logo';
+import { AuthLogo } from '../components/logo';
 import { Button } from '../components/button';
 import { verifyEmail, sendRegisterEmailVerification } from '../../services/auth.api';
 
@@ -75,7 +75,7 @@ export default function VerifyEmail() {
       <div className="w-full max-w-md">
         <div className="bg-white rounded-2xl shadow-xl border border-[#E2E8F0] p-8">
           <div className="flex flex-col items-center mb-8">
-            <Logo size="lg" />
+            <AuthLogo />
             <p className="text-[#64748B] mt-3 text-center">
               We&apos;ve sent a verification code to <span className="font-medium text-[#0F172A]">{email}</span>.
             </p>

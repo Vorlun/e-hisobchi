@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { ShieldCheck, Loader2 } from 'lucide-react';
+import { AuthLogo } from '../components/logo';
 import { Button } from '../components/button';
 import { useAuth } from '../../store/authStore';
 import { getSessionToken } from '../../services/tokenStorage';
@@ -48,11 +49,7 @@ export default function VerifyLogin() {
       <div className="w-full max-w-md">
         <div className="bg-white rounded-2xl shadow-xl border border-[#E2E8F0] p-8">
           <div className="flex flex-col items-center mb-8">
-            <img
-              src="/logo_full.png"
-              alt="e-Hisobchi"
-              className="h-[180px] mx-auto object-contain"
-            />
+            <AuthLogo />
             <p className="text-[#64748B] mt-3 text-center">
               Enter the verification code sent to <span className="font-medium text-[#0F172A]">{emailLabel}</span>.
             </p>

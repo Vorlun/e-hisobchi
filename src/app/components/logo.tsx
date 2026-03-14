@@ -1,5 +1,18 @@
 import React from 'react';
 
+/** Reusable logo for auth pages (login, register, verify-login, verify-email). */
+export function AuthLogo() {
+  return (
+    <div className="flex justify-center mb-6">
+      <img
+        src="/logo_full.png"
+        alt="e-hisobchi"
+        className="w-[65%] max-w-[320px] min-w-[180px] object-contain transition-all"
+      />
+    </div>
+  );
+}
+
 interface LogoProps {
   size?: 'sm' | 'md' | 'lg';
   variant?: 'full' | 'icon';
