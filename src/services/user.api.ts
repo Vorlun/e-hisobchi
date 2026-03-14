@@ -5,12 +5,17 @@
 import { api } from './api';
 
 export interface UserProfile {
-  id: string;
+  id: string | number;
   fullName: string;
   email: string;
   phoneNumber: string;
   defaultCurrency: string;
   emailVerified?: boolean;
+}
+
+interface WrappedProfileResponse {
+  success?: boolean;
+  data?: UserProfile;
 }
 
 export interface UpdateProfileRequest {
@@ -44,9 +49,13 @@ export interface ChangePasswordRequest {
 }
 
 export async function getProfile(): Promise<UserProfile> {
-  const res = await api<UserProfile>('/users/me');
-  if (!res?.id) throw new Error('Invalid profile response');
-  return res;
+  const res = await api<WrappedProfileResponse | UserProfile>('/users/me');
+  const data =
+    res && typeof res === 'object' && 'data' in res && (res as WrappedProfileResponse).data
+      ? (res as WrappedProfileResponse).data
+      : (res as UserProfile);
+  if (!data?.id) throw new Error('Invalid profile response');
+  return { ...data, id: String(data.id) };
 }
 
 export async function updateProfile(data: UpdateProfileRequest): Promise<UserProfile> {

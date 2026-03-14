@@ -8,10 +8,10 @@ interface LogoProps {
 export function Logo({ size = 'md', variant = 'full' }: LogoProps) {
   const heightClass =
     size === 'sm'
-      ? 'h-[90px]'
+      ? 'h-[72px]'
       : size === 'lg'
-        ? 'h-[180px]'
-        : 'h-[120px]';
+        ? 'h-[320px]'
+        : 'h-16';
 
   if (variant === 'icon') {
     return (
