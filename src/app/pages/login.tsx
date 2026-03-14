@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router';
-import { Logo } from '../components/logo';
 import { Button } from '../components/button';
 import { Lock, Mail, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useAuth } from '../../store/authStore';
@@ -141,28 +140,32 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#F8FAFC] via-[#EFF6FF] to-[#F0FDF4] flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="bg-white rounded-2xl shadow-xl border border-[#E2E8F0] p-8">
-          <div className="flex flex-col items-center mb-8">
-            <Logo size="lg" />
+      <div className="w-full max-w-md mx-auto text-center">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl border border-[#E2E8F0] p-8 space-y-6">
+          <div className="max-w-md mx-auto text-center">
+            <img
+              src="/logo_full.png"
+              alt="e-Hisobchi"
+              className="h-[260px] w-auto mx-auto object-contain"
+            />
             <p className="text-[#64748B] mt-3 text-center">
               Smart Financial Management Platform
             </p>
           </div>
 
           {error && (
-            <p className="text-sm text-[#DC2626] mb-4" role="alert">
+            <p className="text-sm text-[#DC2626]" role="alert">
               {error}
             </p>
           )}
           {successMessage && (
-            <p className="text-sm text-[#059669] mb-4" role="status">
+            <p className="text-sm text-[#059669]" role="status">
               {successMessage}
             </p>
           )}
 
           {mode === 'login' ? (
-            <form onSubmit={handleCredentialsSubmit} className="space-y-5">
+            <form onSubmit={handleCredentialsSubmit} className="space-y-6">
               <div>
                 <label className="block text-sm mb-2 text-[#0F172A]">
                   Email Address
@@ -221,7 +224,7 @@ export default function Login() {
               </Button>
             </form>
           ) : (
-            <form onSubmit={handleRegisterSubmit} className="space-y-5">
+            <form onSubmit={handleRegisterSubmit} className="space-y-6">
               <div>
                 <label className="block text-sm mb-2 text-[#0F172A]">
                   Full name
@@ -321,7 +324,7 @@ export default function Login() {
             </form>
           )}
 
-          <div className="mt-4">
+          <div className="pt-2">
             <button
               type="button"
               onClick={googleLogin}
@@ -333,7 +336,7 @@ export default function Login() {
             </button>
           </div>
 
-          <div className="mt-6 text-center">
+          <div className="pt-2 text-center">
             <p className="text-sm text-[#64748B]">
               {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
               <button

@@ -5,9 +5,15 @@ import { Input } from '../components/input';
 import { Select } from '../components/select';
 import { Badge } from '../components/badge';
 import { User, Bell, Lock, CreditCard, Globe } from 'lucide-react';
+import { useAuth } from '../../store/authStore';
 
 export default function Settings() {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('profile');
+
+  const fullName = user?.fullName ?? '';
+  const [firstName, ...rest] = fullName.split(' ');
+  const lastName = rest.join(' ') || '';
 
   const tabs = [
     { id: 'profile', label: 'Profile', icon: User },
@@ -56,8 +62,8 @@ export default function Settings() {
                 <h3 className="text-lg font-semibold text-[#0F172A] mb-6">Personal Information</h3>
                 <div className="space-y-4">
                   <div className="flex items-center gap-4 mb-6">
-                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#1E40AF] to-[#10B981] flex items-center justify-center text-white text-2xl font-semibold">
-                      JD
+                    <div className="w-20 h-20 rounded-full bg-blue-500 flex items-center justify-center text-white text-2xl font-semibold">
+                      {fullName ? fullName.charAt(0).toUpperCase() : '?'}
                     </div>
                     <div>
                       <Button variant="secondary" size="sm">Change Photo</Button>
@@ -66,11 +72,11 @@ export default function Settings() {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Input label="First Name" defaultValue="John" />
-                    <Input label="Last Name" defaultValue="Doe" />
+                    <Input label="First Name" defaultValue={firstName} />
+                    <Input label="Last Name" defaultValue={lastName} />
                   </div>
-                  <Input label="Email Address" type="email" defaultValue="john@example.com" />
-                  <Input label="Phone Number" type="tel" defaultValue="+998 90 123 45 67" />
+                  <Input label="Email Address" type="email" defaultValue={user?.email ?? ''} />
+                  <Input label="Phone Number" type="tel" defaultValue={user?.phoneNumber ?? ''} />
                   <div>
                     <label className="block text-sm mb-2 text-[#0F172A]">Bio</label>
                     <textarea

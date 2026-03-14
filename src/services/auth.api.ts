@@ -10,11 +10,14 @@ export interface LoginRequest {
   password: string;
 }
 
+/** Login response: either tokens (verified) or sessionToken (OTP required). */
 export interface LoginResponse {
-  sessionToken: string;
+  sessionToken?: string;
   maskedEmail?: string;
   emailVerified?: boolean;
   phoneVerified?: boolean;
+  accessToken?: string;
+  refreshToken?: string;
 }
 
 /** Backend wraps login response in { success, message?, data }. */
@@ -115,7 +118,8 @@ export async function login(identifier: string, password: string): Promise<Login
     res && typeof res === 'object' && 'data' in res && (res as WrappedLoginResponse).data
       ? (res as WrappedLoginResponse).data
       : (res as LoginResponse);
-  if (!data?.sessionToken) {
+  if (!data) throw new Error('Invalid login response');
+  if (!data.accessToken && !data.refreshToken && !data.sessionToken) {
     throw new Error('Invalid login response');
   }
   return data;

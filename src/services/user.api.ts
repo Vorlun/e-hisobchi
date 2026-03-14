@@ -15,7 +15,7 @@ export interface UserProfile {
 
 interface WrappedProfileResponse {
   success?: boolean;
-  data?: UserProfile;
+  data?: { fullName?: string; email?: string; phoneNumber?: string; id?: string | number; defaultCurrency?: string };
 }
 
 export interface UpdateProfileRequest {
@@ -49,13 +49,25 @@ export interface ChangePasswordRequest {
 }
 
 export async function getProfile(): Promise<UserProfile> {
-  const res = await api<WrappedProfileResponse | UserProfile>('/users/me');
-  const data =
+  const res = await api<WrappedProfileResponse | UserProfile>('/auth/me');
+  const raw =
     res && typeof res === 'object' && 'data' in res && (res as WrappedProfileResponse).data
       ? (res as WrappedProfileResponse).data
       : (res as UserProfile);
-  if (!data?.id) throw new Error('Invalid profile response');
-  return { ...data, id: String(data.id) };
+  if (!raw) throw new Error('Invalid profile response');
+  const id = raw.id != null ? String(raw.id) : '';
+  const fullName = raw.fullName ?? '';
+  const email = raw.email ?? '';
+  const phoneNumber = raw.phoneNumber ?? '';
+  const defaultCurrency = raw.defaultCurrency ?? 'UZS';
+  return {
+    id,
+    fullName,
+    email,
+    phoneNumber,
+    defaultCurrency,
+    emailVerified: (raw as UserProfile).emailVerified,
+  };
 }
 
 export async function updateProfile(data: UpdateProfileRequest): Promise<UserProfile> {
