@@ -10,7 +10,7 @@ export function Logo({ size = 'md', variant = 'full' }: LogoProps) {
     size === 'sm'
       ? 'h-[90px]'
       : size === 'lg'
-        ? 'h-[160px]'
+        ? 'h-[180px]'
         : 'h-[120px]';
 
   if (variant === 'icon') {

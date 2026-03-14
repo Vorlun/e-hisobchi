@@ -180,14 +180,24 @@ export async function sendRegisterEmailVerification(email: string): Promise<void
   }
 }
 
-/** Verify registration email OTP. */
-export async function verifyRegisterEmail(email: string, code: string): Promise<void> {
-  const res = await api<{ success?: boolean; message?: string }>('/auth/verify/email', {
+export interface VerifyEmailResponse {
+  accessToken?: string;
+  refreshToken?: string;
+  user?: AuthUser;
+}
+
+/** Verify registration email OTP. Returns tokens if backend auto-logins after verification. */
+export async function verifyRegisterEmail(email: string, code: string): Promise<VerifyEmailResponse | void> {
+  const res = await api<{ success?: boolean; message?: string; data?: VerifyEmailResponse }>('/auth/verify/email', {
     method: 'POST',
     body: JSON.stringify({ email, code }),
   });
   if (res && typeof res === 'object' && res.success === false) {
-    throw new Error(res.message || 'Invalid verification code');
+    throw new Error((res as { message?: string }).message || 'Invalid verification code');
+  }
+  const data = res && typeof res === 'object' && 'data' in res ? (res as { data?: VerifyEmailResponse }).data : res as VerifyEmailResponse;
+  if (data?.accessToken && data?.refreshToken) {
+    return { accessToken: data.accessToken, refreshToken: data.refreshToken, user: data.user };
   }
 }
 

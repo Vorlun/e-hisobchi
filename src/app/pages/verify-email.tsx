@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router';
 import { ShieldCheck, Loader2 } from 'lucide-react';
 import { Logo } from '../components/logo';
 import { Button } from '../components/button';
+import { useAuth } from '../../store/authStore';
 import { verifyRegisterEmail, sendRegisterEmailVerification } from '../../services/auth.api';
 
 interface VerifyEmailLocationState {
@@ -12,6 +13,7 @@ interface VerifyEmailLocationState {
 export default function VerifyEmail() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { completeRegistrationLogin } = useAuth();
   const state = (location.state as VerifyEmailLocationState) || {};
   const [email] = useState<string | undefined>(state.email);
   const [code, setCode] = useState('');
@@ -41,9 +43,13 @@ export default function VerifyEmail() {
     setInfo(null);
     setLoading(true);
     try {
-      await verifyRegisterEmail(email, code.trim());
-      setInfo('Email verified successfully. Please login.');
-      navigate('/login', { replace: true, state: { emailVerified: true } });
+      const tokens = await verifyRegisterEmail(email, code.trim());
+      if (tokens?.accessToken && tokens?.refreshToken) {
+        await completeRegistrationLogin(tokens.accessToken, tokens.refreshToken);
+      } else {
+        setInfo('Email verified successfully. Please login.');
+        navigate('/login', { replace: true, state: { emailVerified: true } });
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Verification failed');
     } finally {

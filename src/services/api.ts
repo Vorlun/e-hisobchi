@@ -46,7 +46,7 @@ export async function api<T>(
   isRetryAfterRefresh = false
 ): Promise<T> {
   const url = `${API_BASE}${path}`;
-  const accessToken = getAccessToken();
+  const token = getAccessToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options?.headers as Record<string, string>),
@@ -60,8 +60,8 @@ export async function api<T>(
     path.startsWith('/auth/forgot-password') ||
     path.startsWith('/auth/reset-password');
 
-  if (accessToken && !isPublicAuthEndpoint) {
-    headers['Authorization'] = `Bearer ${accessToken}`;
+  if (token && !isPublicAuthEndpoint) {
+    headers['Authorization'] = `Bearer ${token}`;
   }
   let res: Response;
   try {
@@ -69,6 +69,7 @@ export async function api<T>(
   } catch (err) {
     if (err instanceof Error && err.name === 'AbortError') throw err;
     const message = err instanceof Error ? err.message : 'Network error';
+    toast.error(message);
     throw new Error(`Request failed: ${message}`);
   }
   if (res.status === 401 && !isRetryAfterRefresh && !isPublicAuthEndpoint) {
@@ -93,12 +94,12 @@ export async function api<T>(
     }
     let message = detail || `Request failed (${res.status})`;
     if (res.status === 400) {
-      message = detail || 'Invalid input. Please check the form and try again.';
+      message = detail || 'Validation error';
       toast.error(message);
       throw new Error(message);
     }
     if (res.status === 401) {
-      message = isPublicAuthEndpoint && path.includes('/auth/login') ? 'Invalid email or password' : (detail || 'Unauthorized');
+      message = isPublicAuthEndpoint ? (detail || 'Invalid email or password') : (detail || 'Session expired');
       toast.error(message);
       throw new Error(message);
     }
@@ -108,7 +109,12 @@ export async function api<T>(
       throw new Error(message);
     }
     if (res.status === 409) {
-      message = detail || 'Account already exists';
+      message = detail || 'User already exists';
+      toast.error(message);
+      throw new Error(message);
+    }
+    if (res.status === 429) {
+      message = detail || 'Too many requests';
       toast.error(message);
       throw new Error(message);
     }

@@ -72,7 +72,7 @@ export default function Login() {
   }, [location.pathname, location.state, navigate]);
 
   if (getAccessToken() || isAuthenticated) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   const normalizedPhone = useMemo(() => normalizeUzPhone(phoneNumber), [phoneNumber]);

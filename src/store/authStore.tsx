@@ -36,6 +36,7 @@ interface AuthContextValue extends AuthState {
   changePhone: (newPhone: string) => Promise<void>;
   verifyPhone: (otp: string, type: string) => Promise<void>;
   deleteAccount: (password: string) => Promise<void>;
+  completeRegistrationLogin: (accessToken: string, refreshToken: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -130,7 +131,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch {
           setUser(null);
         }
-        navigate('/', { replace: true });
+        navigate('/dashboard', { replace: true });
       } finally {
         setLoading(false);
       }
@@ -249,6 +250,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [navigate]
   );
 
+  const completeRegistrationLogin = useCallback(
+    async (accessToken: string, refreshToken: string) => {
+      setTokens(accessToken, refreshToken);
+      setAccessTokenState(accessToken);
+      setRefreshTokenState(refreshToken);
+      clearSessionToken();
+      setSessionTokenState(null);
+      try {
+        const profile = await userApi.getProfile();
+        setUser(profile);
+      } catch {
+        setUser(null);
+      }
+      navigate('/dashboard', { replace: true });
+    },
+    [navigate]
+  );
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
@@ -272,6 +291,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       changePhone,
       verifyPhone,
       deleteAccount,
+      completeRegistrationLogin,
     }),
     [
       user,
@@ -295,6 +315,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       changePhone,
       verifyPhone,
       deleteAccount,
+      completeRegistrationLogin,
     ]
   );
 
