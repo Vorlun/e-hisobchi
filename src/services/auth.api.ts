@@ -8,35 +8,12 @@ import { clearTokens } from './tokenStorage';
 export interface LoginRequest {
   identifier: string;
   password: string;
-  deviceId: string;
 }
 
-export interface LoginDataSession {
+export interface LoginResponse {
   sessionToken: string;
   maskedEmail?: string;
   emailVerified?: boolean;
-  phoneVerified?: boolean;
-  otpRequired?: boolean;
-}
-
-export interface LoginDataDirect {
-  accessToken: string;
-  refreshToken: string;
-  user?: AuthUser;
-}
-
-/** Login response: either OTP required (sessionToken) or direct (accessToken + refreshToken). */
-export type LoginData = LoginDataSession | LoginDataDirect;
-
-function isLoginDirect(data: LoginData): data is LoginDataDirect {
-  return 'accessToken' in data && 'refreshToken' in data;
-}
-
-// Legacy shape with success/data wrapper (kept for compatibility)
-export interface LoginResponse {
-  success: boolean;
-  data: LoginDataSession | LoginDataDirect;
-  message?: string;
 }
 
 export interface VerifyOtpRequest {
@@ -110,36 +87,26 @@ export interface AuthWithTokensResponse {
   user: AuthUser;
 }
 
-export async function login(
-  identifier: string,
-  password: string,
-  deviceId: string
-): Promise<LoginData> {
-  const res = await api<LoginResponse | LoginDataSession | LoginDataDirect>('/auth/login', {
+function getOrCreateDeviceId(): string {
+  const key = 'ehisobchi_device_id';
+  let id = localStorage.getItem(key);
+  if (!id) {
+    id = `device_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;
+    localStorage.setItem(key, id);
+  }
+  return id;
+}
+
+export async function login(identifier: string, password: string): Promise<LoginResponse> {
+  const deviceId = getOrCreateDeviceId();
+  const res = await api<LoginResponse>('/auth/login', {
     method: 'POST',
     body: JSON.stringify({ identifier, password, deviceId }),
   });
-
-  if (res && typeof res === 'object' && 'success' in res && (res as LoginResponse).success === false) {
-    const r = res as LoginResponse & { message?: string };
-    throw new Error(r.message || 'Login failed');
-  }
-
-  let data: LoginData;
-  if (res && typeof res === 'object' && 'data' in res) {
-    data = (res as LoginResponse).data;
-  } else if (res && typeof res === 'object') {
-    data = res as LoginDataSession | LoginDataDirect;
-  } else {
+  if (!res?.sessionToken) {
     throw new Error('Invalid login response');
   }
-
-  if (isLoginDirect(data)) {
-    if (!data.accessToken || !data.refreshToken) throw new Error('Invalid login response');
-    return data;
-  }
-  if (!data.sessionToken) throw new Error('Invalid login response');
-  return data;
+  return res;
 }
 
 export async function verifyLoginOtp(

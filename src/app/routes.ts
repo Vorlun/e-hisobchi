@@ -14,6 +14,7 @@ import Family from './pages/family';
 import Smart from './pages/smart';
 import Settings from './pages/settings';
 import GoogleCallback from './pages/google-callback';
+import VerifyLogin from './pages/verify-login';
 import VerifyEmail from './pages/verify-email';
 
 export const router = createBrowserRouter([
@@ -24,6 +25,10 @@ export const router = createBrowserRouter([
       {
         path: 'login',
         Component: Login,
+      },
+      {
+        path: 'verify-login',
+        Component: VerifyLogin,
       },
       {
         path: 'verify-email',

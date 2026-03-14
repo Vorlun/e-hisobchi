@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router';
 import { Logo } from '../components/logo';
 import { Button } from '../components/button';
-import { Lock, Mail, ShieldCheck, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Lock, Mail, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useAuth } from '../../store/authStore';
 import { getAccessToken } from '../../services/tokenStorage';
 

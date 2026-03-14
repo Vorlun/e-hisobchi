@@ -1,11 +1,11 @@
 /**
  * Single API client for backend integration.
- * Set VITE_API_URL in .env (e.g. VITE_API_URL=https://api.example.com/v1).
- * When empty, the app uses in-memory mock data only.
- * Throws on non-ok response so callers can catch and surface errors (e.g. toast, banner).
- * Attaches access token when present; on 401 attempts token refresh and retries once.
+ * - Attaches access token for protected endpoints
+ * - Refreshes tokens on 401 and retries once
+ * - Normalizes backend error responses and surfaces toast notifications
  */
 
+import { toast } from 'sonner';
 import { getAccessToken, getRefreshToken, setTokens, clearTokens } from './tokenStorage';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://api.e-hisobchi.uz/api';
@@ -52,8 +52,9 @@ export async function api<T>(
     ...(options?.headers as Record<string, string>),
   };
   const isPublicAuthEndpoint =
-    path.startsWith('/auth/register') ||
     path.startsWith('/auth/login') ||
+    path.startsWith('/auth/login/verify-otp') ||
+    path.startsWith('/auth/register') ||
     path.startsWith('/auth/verify/email') ||
     path.startsWith('/auth/verify/email/send') ||
     path.startsWith('/auth/forgot-password') ||
@@ -70,13 +71,14 @@ export async function api<T>(
     const message = err instanceof Error ? err.message : 'Network error';
     throw new Error(`Request failed: ${message}`);
   }
-  if (res.status === 401 && !isRetryAfterRefresh && !path.includes('/auth/login')) {
+  if (res.status === 401 && !isRetryAfterRefresh && !isPublicAuthEndpoint) {
     const refreshed = await attemptRefresh();
     if (refreshed) return api<T>(path, options, true);
     clearTokens();
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('auth:sessionExpired'));
     }
+    toast.error('Session expired. Please sign in again.');
     throw new Error('Session expired. Please sign in again.');
   }
   if (!res.ok) {
@@ -89,10 +91,34 @@ export async function api<T>(
     } catch {
       if (body) detail = body.slice(0, 200);
     }
-    if (res.status === 403) throw new Error(detail || 'You do not have permission to perform this action.');
-    if (res.status === 409) throw new Error(detail || 'This account already exists.');
-    if (res.status >= 500) throw new Error(detail || 'Unexpected server error');
-    throw new Error(detail || `Request failed (${res.status})`);
+    let message = detail || `Request failed (${res.status})`;
+    if (res.status === 400) {
+      message = detail || 'Invalid input. Please check the form and try again.';
+      toast.error(message);
+      throw new Error(message);
+    }
+    if (res.status === 401) {
+      message = isPublicAuthEndpoint && path.includes('/auth/login') ? 'Invalid email or password' : (detail || 'Unauthorized');
+      toast.error(message);
+      throw new Error(message);
+    }
+    if (res.status === 403) {
+      message = detail || 'You do not have permission to perform this action.';
+      toast.error(message);
+      throw new Error(message);
+    }
+    if (res.status === 409) {
+      message = detail || 'Account already exists';
+      toast.error(message);
+      throw new Error(message);
+    }
+    if (res.status >= 500) {
+      message = detail || 'Server error';
+      toast.error(message);
+      throw new Error(message);
+    }
+    toast.error(message);
+    throw new Error(message);
   }
   if (res.status === 204 || res.headers.get('content-length') === '0') {
     return undefined as T;

@@ -1,6 +1,7 @@
 const ACCESS_TOKEN_KEY = 'ehisobchi_access_token';
 const REFRESH_TOKEN_KEY = 'ehisobchi_refresh_token';
 const USER_KEY = 'ehisobchi_user';
+export const SESSION_TOKEN_KEY = 'sessionToken';
 
 export function getAccessToken(): string | null {
   return localStorage.getItem(ACCESS_TOKEN_KEY);
@@ -8,6 +9,18 @@ export function getAccessToken(): string | null {
 
 export function getRefreshToken(): string | null {
   return localStorage.getItem(REFRESH_TOKEN_KEY);
+}
+
+export function getSessionToken(): string | null {
+  return localStorage.getItem(SESSION_TOKEN_KEY);
+}
+
+export function setSessionTokenStorage(token: string): void {
+  localStorage.setItem(SESSION_TOKEN_KEY, token);
+}
+
+export function clearSessionToken(): void {
+  localStorage.removeItem(SESSION_TOKEN_KEY);
 }
 
 export function setTokens(accessToken: string, refreshToken: string): void {
@@ -36,6 +49,7 @@ export function clearTokens(): void {
   localStorage.removeItem(ACCESS_TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
+  clearSessionToken();
 }
 
 export function hasTokens(): boolean {

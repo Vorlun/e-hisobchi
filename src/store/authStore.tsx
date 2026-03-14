@@ -3,18 +3,7 @@ import { useNavigate } from 'react-router';
 import type { UserProfile } from '../services/user.api';
 import * as authApi from '../services/auth.api';
 import * as userApi from '../services/user.api';
-import { getAccessToken, getRefreshToken, setTokens, setStoredUser, clearTokens } from '../services/tokenStorage';
-
-const DEVICE_ID_KEY = 'ehisobchi_device_id';
-
-function getOrCreateDeviceId(): string {
-  let id = localStorage.getItem(DEVICE_ID_KEY);
-  if (!id) {
-    id = `device_${Date.now()}_${Math.random().toString(36).slice(2, 12)}`;
-    localStorage.setItem(DEVICE_ID_KEY, id);
-  }
-  return id;
-}
+import { getAccessToken, getRefreshToken, setTokens, setStoredUser, clearTokens, getSessionToken, setSessionTokenStorage, clearSessionToken } from '../services/tokenStorage';
 
 interface AuthState {
   user: UserProfile | null;
@@ -55,15 +44,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [sessionToken, setSessionTokenState] = useState<string | null>(null);
+  const [sessionToken, setSessionTokenState] = useState<string | null>(getSessionToken());
   const [accessTokenState, setAccessTokenState] = useState<string | null>(getAccessToken());
   const [refreshTokenState, setRefreshTokenState] = useState<string | null>(getRefreshToken());
 
-  /** Authenticated if we have an access token (persists across refresh). User may still be loading. */
   const isAuthenticated = Boolean(accessTokenState || getAccessToken());
 
   const setSessionToken = useCallback((token: string | null) => {
     setSessionTokenState(token);
+    if (token) setSessionTokenStorage(token);
+    else clearSessionToken();
   }, []);
 
   const loadUser = useCallback(async () => {
@@ -82,10 +72,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null);
       setAccessTokenState(null);
       setRefreshTokenState(null);
+      navigate('/login', { replace: true });
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [navigate]);
 
   useEffect(() => {
     loadUser();
@@ -95,6 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const onSessionExpired = () => {
       setUser(null);
       setSessionTokenState(null);
+      clearSessionToken();
       navigate('/login', { replace: true });
     };
     window.addEventListener('auth:sessionExpired', onSessionExpired);
@@ -105,30 +97,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async (identifier: string, password: string) => {
       setLoading(true);
       try {
-        const deviceId = getOrCreateDeviceId();
-        const data = await authApi.login(identifier, password, deviceId);
-        if (!('accessToken' in data) || !data.accessToken || !data.refreshToken) {
-          // If backend indicates email not verified without tokens, send verification flow.
-          await authApi.sendRegisterEmailVerification(identifier);
-          navigate('/verify-email', { replace: true, state: { email: identifier } });
-          return;
-        }
-        setTokens(data.accessToken, data.refreshToken);
-        setAccessTokenState(data.accessToken);
-        setRefreshTokenState(data.refreshToken);
-        try {
-          const profile = await userApi.getProfile();
-          setUser(profile);
-          if (profile.emailVerified === false && profile.email) {
-            await authApi.sendRegisterEmailVerification(profile.email);
-            navigate('/verify-email', { replace: true, state: { email: profile.email } });
-            return;
-          }
-        } catch {
-          setUser(null);
-        }
-        setSessionTokenState(null);
-        navigate('/', { replace: true });
+        const data = await authApi.login(identifier, password);
+        setSessionTokenStorage(data.sessionToken);
+        setSessionTokenState(data.sessionToken);
+        navigate('/verify-login', {
+          replace: true,
+          state: { sessionToken: data.sessionToken, maskedEmail: data.maskedEmail },
+        });
       } finally {
         setLoading(false);
       }
@@ -138,21 +113,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const verifyOtp = useCallback(
     async (code: string) => {
-      if (!sessionToken) throw new Error('No session. Please sign in again.');
+      const activeSession = sessionToken || getSessionToken();
+      if (!activeSession) throw new Error('No session. Please sign in again.');
       setLoading(true);
       try {
-        const res = await authApi.verifyLoginOtp(sessionToken, code);
+        const res = await authApi.verifyLoginOtp(activeSession, code);
         setTokens(res.accessToken, res.refreshToken);
         setAccessTokenState(res.accessToken);
         setRefreshTokenState(res.refreshToken);
         if (res.user) setStoredUser(res.user);
+        clearSessionToken();
+        setSessionTokenState(null);
         try {
           const profile = await userApi.getProfile();
           setUser(profile);
         } catch {
           setUser(null);
         }
-        setSessionTokenState(null);
         navigate('/', { replace: true });
       } finally {
         setLoading(false);
@@ -205,6 +182,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSessionTokenState(null);
       setAccessTokenState(null);
       setRefreshTokenState(null);
+      clearSessionToken();
       navigate('/login', { replace: true });
     } finally {
       setLoading(false);
